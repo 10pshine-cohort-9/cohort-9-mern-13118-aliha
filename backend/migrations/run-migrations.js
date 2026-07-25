@@ -1,11 +1,11 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { Pool } = require("pg");
-require("dotenv").config();
+const env = require("../src/config/env");
 
 const MIGRATIONS_DIR = __dirname;
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: env.databaseUrl });
 
 async function ensureMigrationsTable(client) {
   await client.query(`
@@ -21,7 +21,7 @@ function listUpMigrations() {
   return fs
     .readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql") && !f.endsWith(".down.sql"))
-    .sort((a, b) => a.localeCompare(b));
+    .sort();
 }
 
 async function getAppliedMigrations(client) {

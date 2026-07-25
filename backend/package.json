@@ -9,7 +9,7 @@
     "dev": "node --watch src/server.js",
     "migrate": "node migrations/run-migrations.js",
     "migrate:down": "node migrations/run-migrations.js --down",
-    "test": "NODE_ENV=test JWT_SECRET=test-only-secret-do-not-use-in-prod mocha --recursive tests --timeout 10000 --exit",
+    "test": "NODE_ENV=test JWT_SECRET=test-only-secret-do-not-use-in-prod mocha --recursive tests --timeout 10000",
     "lint": "eslint src"
   },
   "dependencies": {

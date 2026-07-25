@@ -6,7 +6,7 @@ async function signup(req, res, next) {
   try {
     const errors = validateSignup(req.body);
     if (errors.length > 0) {
-      throw new AppError(errors.join('; '), 400);
+      throw new AppError('Validation failed', 400, { errors });
     }
 
     const { name, email, password } = req.body;
@@ -22,7 +22,7 @@ async function login(req, res, next) {
   try {
     const errors = validateLogin(req.body);
     if (errors.length > 0) {
-      throw new AppError(errors.join('; '), 400);
+      throw new AppError('Validation failed', 400, { errors });
     }
 
     const { email, password } = req.body;

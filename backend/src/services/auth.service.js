@@ -21,10 +21,23 @@ async function signup({ name, email, password }) {
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await usersRepository.createUser({ name, email, passwordHash });
-  const token = issueToken(user);
 
-  return { user, token };
+  try {
+    const user = await usersRepository.createUser({ name, email, passwordHash });
+    const token = issueToken(user);
+    return { user, token };
+  } catch (err) {
+    // The findByEmail check above is inherently race-prone: two concurrent
+    // signups can both pass it before either INSERT commits. PostgreSQL's
+    // own UNIQUE constraint on users.email is the real guarantee; '23505'
+    // is its unique_violation error code. Translate that into the same
+    // 409 a sequential duplicate would get, instead of letting it surface
+    // as an unhandled 500.
+    if (err.code === '23505') {
+      throw new AppError('An account with that email already exists', 409);
+    }
+    throw err;
+  }
 }
 
 async function login({ email, password }) {

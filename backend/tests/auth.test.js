@@ -48,7 +48,26 @@ describe('POST /api/auth/signup', () => {
     expect(res.body).to.include.keys('status', 'message', 'requestId');
   });
 
-  it('rejects an invalid payload with 400', async () => {
+  it('maps a concurrent duplicate (PG unique-violation past the pre-check) to 409, not 500', async () => {
+    // Simulates the race: findByEmail sees no user (both concurrent
+    // requests can), but the INSERT itself hits the DB's UNIQUE
+    // constraint because the other request won the race.
+    sinon.stub(usersRepository, 'findByEmail').resolves(null);
+    const pgUniqueViolation = new Error('duplicate key value violates unique constraint');
+    pgUniqueViolation.code = '23505';
+    sinon.stub(usersRepository, 'createUser').rejects(pgUniqueViolation);
+
+    const res = await chai.request(app).post('/api/auth/signup').send({
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      password: 'supersecret123',
+    });
+
+    expect(res).to.have.status(409);
+    expect(res.body).to.include.keys('status', 'message', 'requestId');
+  });
+
+  it('rejects an invalid payload with 400 and structured field errors', async () => {
     const res = await chai.request(app).post('/api/auth/signup').send({
       name: 'A',
       email: 'not-an-email',
@@ -56,6 +75,8 @@ describe('POST /api/auth/signup', () => {
     });
 
     expect(res).to.have.status(400);
+    expect(res.body.message).to.equal('Validation failed');
+    expect(res.body.details).to.have.property('errors').that.is.an('array').with.length.above(0);
   });
 });
 

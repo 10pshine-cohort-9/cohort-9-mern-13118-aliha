@@ -1,5 +1,5 @@
 {
   "spec": "tests/**/*.test.js",
-  "timeout": 10000,
-  "exit": true
+  "file": "tests/globalTeardown.js",
+  "timeout": 10000
 }

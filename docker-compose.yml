@@ -4,15 +4,19 @@ services:
     container_name: notes-app-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: aliha
-      POSTGRES_PASSWORD: itsaliha
-      POSTGRES_DB: notes_app_db
+      POSTGRES_USER: ${POSTGRES_USER:-notes_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-notes_app_password}
+      POSTGRES_DB: ${POSTGRES_DB:-notes_app_db}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aliha -d notes_app_db"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-notes_app} -d ${POSTGRES_DB:-notes_app_db}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5

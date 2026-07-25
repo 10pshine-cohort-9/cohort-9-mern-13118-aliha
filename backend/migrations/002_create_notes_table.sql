@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS notes (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Every notes query in the app is scoped to a single user; this index
+-- keeps that lookup (and the ON DELETE CASCADE) efficient.
 CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes (user_id);
 
 CREATE TRIGGER trg_notes_updated_at
