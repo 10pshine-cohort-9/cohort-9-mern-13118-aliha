@@ -1,3 +1,17 @@
+#!/usr/bin/env node
+/**
+ * Lightweight SQL migration runner for PostgreSQL.
+ *
+ * Applies *.sql files in this directory in filename order, tracking what
+ * has already been applied in a `schema_migrations` table. Each numbered
+ * migration (e.g. 001_create_users_table.sql) has a matching
+ * `<name>.down.sql` used to revert it.
+ *
+ * Usage:
+ *   node migrations/run-migrations.js          apply all pending migrations
+ *   node migrations/run-migrations.js --down   revert the most recent migration
+ *   npm run migrate / npm run migrate:down     (see package.json)
+ */
 const fs = require("node:fs");
 const path = require("node:path");
 const { Pool } = require("pg");

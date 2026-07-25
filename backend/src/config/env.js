@@ -60,6 +60,26 @@ function assertRequiredEnv() {
     );
     process.exit(1);
   }
+
+  // Known, accepted-but-unresolved risk: frontend/src/services/apiClient.js
+  // stores the JWT in localStorage, which an XSS can read. That's a
+  // reasonable trade-off for local development, but not something that
+  // should reach a real deployment silently. Refuse to start in
+  // production unless someone has explicitly reviewed and accepted this,
+  // by setting the escape hatch below — a code comment alone isn't a
+  // control, this is.
+  if (env.nodeEnv === 'production' && process.env.ACKNOWLEDGE_LOCALSTORAGE_JWT_RISK !== 'true') {
+    // eslint-disable-next-line no-console
+    console.error(
+      'Refusing to start with NODE_ENV=production: the frontend still stores ' +
+        'JWTs in localStorage (vulnerable to token theft via XSS). Before a ' +
+        'real production deployment, switch to an HttpOnly/Secure/SameSite ' +
+        'cookie session with CSRF protection. If this is a reviewed, ' +
+        'accepted risk (e.g. an internal demo), set ' +
+        'ACKNOWLEDGE_LOCALSTORAGE_JWT_RISK=true to proceed anyway.',
+    );
+    process.exit(1);
+  }
 }
 
 assertRequiredEnv();

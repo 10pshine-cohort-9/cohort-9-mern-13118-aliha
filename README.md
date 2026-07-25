@@ -21,7 +21,7 @@ edit, view, and delete personal notes, strictly scoped to their own account.
 
 ## Repository layout
 
-```
+```text
 /backend    Express REST API (controllers -> services -> data-access)
 /frontend   React SPA
 ```
@@ -30,7 +30,14 @@ edit, view, and delete personal notes, strictly scoped to their own account.
 
 ### 1. Start PostgreSQL
 
+Postgres credentials are **not** hardcoded in `docker-compose.yml` — copy the
+root `.env.example` to `.env` and fill in real values first, or
+`docker compose up` will fail with a "variable is not set" error (deliberately
+— see the CodeRabbit review response below):
+
 ```bash
+cp .env.example .env
+# edit .env: set POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
 docker compose up -d
 ```
 
@@ -39,6 +46,22 @@ docker compose up -d
 ```bash
 cd backend
 cp .env.example .env
+```
+
+Before running anything else, **edit `backend/.env`**:
+- `DATABASE_URL` — update the user/password/db to match whatever you set in
+  the root `.env` in step 1 (they must agree, or migrations/the API can't
+  connect)
+- `JWT_SECRET` — replace the placeholder with a real random value of **at
+  least 32 characters**. The app refuses to start with the placeholder or
+  anything shorter — generate one with:
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
+
+Then:
+
+```bash
 npm install
 npm run migrate      # applies pending migrations
 npm run dev           # http://localhost:4000
@@ -91,10 +114,12 @@ git push origin feature/backend/<feature-name>
 
 ## CodeRabbit review response (Sprint 1 PR)
 
-21 findings across 3 severity tiers. 19 fixed outright; 2 addressed with a
-deliberate, lighter-touch call explained below rather than full compliance.
+21 findings across 3 severity tiers, reviewed in two passes (the second
+catching real gaps in the first pass's fixes — noted inline below). 19
+implemented as requested; 2 are deliberate, documented exceptions — not
+silently skipped, and neither is claimed as "fixed" below.
 
-**High severity — all fixed:**
+**High severity:**
 - Signup race condition: PG's `23505` unique-violation is now caught and
   mapped to the existing 409, closing the gap between the `findByEmail`
   pre-check and the actual `INSERT`
@@ -102,45 +127,59 @@ deliberate, lighter-touch call explained below rather than full compliance.
   the literal `.env.example` placeholder secret, or a secret under 32 chars
 - CORS restricted to an explicit allow-list (`CORS_ORIGINS` env var)
   instead of the wide-open default
-- Postgres bound to `127.0.0.1` only; credentials moved out of
-  `docker-compose.yml` into an untracked root `.env` (see `.env.example`)
+- Postgres bound to `127.0.0.1` only. **First pass was incomplete:**
+  credentials were moved into `${VAR:-default}` substitution, but the
+  `:-default` fallback meant a known, guessable password was silently used
+  if the root `.env` was missing — no better than committing it. Now uses
+  `${VAR:?error}`, which makes `docker compose up` fail loudly instead of
+  silently falling back.
 - CI workflow: `permissions: contents: read` + `persist-credentials: false`
-- **Bearer-token-in-localStorage** — documented as an accepted trade-off
-  (see the comment in `frontend/src/services/apiClient.js`) rather than
-  rewritten to HttpOnly cookies. The full fix is a real architecture change
-  (CSRF handling, `Set-Cookie`, `credentials: 'include'` CORS) that doesn't
-  fit a scaffold where Sprint 3's frontend auth flow doesn't exist yet —
-  revisit before this app handles anything more sensitive than personal
-  notes, or before any real deployment.
 
 **Medium severity — all fixed:** migration runner now reuses
 `src/config/env.js` instead of reading `process.env` separately; DB port
 kept aligned between `.env.example` and `docker-compose.yml`; 404 responses
-no longer echo query-string values; graceful shutdown now force-exits after
-a 10s bound instead of hanging indefinitely; `err.details` excluded from
-logs (no fixed shape, so static redact paths can't cover it reliably);
-`.gitignore` now covers all `.env*` variants.
+no longer echo query-string values; `err.details` excluded from logs (no
+fixed shape, so static redact paths can't cover it reliably); `.gitignore`
+now covers all `.env*` variants. Graceful shutdown: **first pass was
+incomplete** — it added a bounded force-exit timer but ignored
+`server.close()`'s error argument, so a failed close would still report
+success. Now checks that argument and exits non-zero on failure.
 
 **Low severity:**
 - Fixed: removed Mocha's `--exit` (added a proper `pool.end()` teardown
-  instead, so a real leaked handle would now surface instead of being
-  masked); validation errors preserved as structured `details` instead of
+  instead); validation errors preserved as structured `details` instead of
   joined into one string; `AppError` now validates its status code range;
   `/health` documented explicitly as liveness-only; frontend CI now runs
-  `lint`; `eslint-plugin-react`/`-react-hooks` added; lint script now
-  covers `.jsx`.
-- **`react/prop-types` left off** in `frontend/.eslintrc.cjs` — deliberate,
-  not missed. This project isn't using PropTypes or TypeScript for prop
-  validation; if the component tree grows complex enough for that to
-  matter, TypeScript is the better fix, not retrofitting PropTypes onto a
-  4-sprint scope.
-- **Skipped:** wrapping `health.test.js`'s assertions for extra failure
-  context. Chai-http talks directly to the in-process Express app (no real
-  network hop), so a rejected request here is already an assertion
-  failure with a clear Mocha stack trace — the extra wrapping wouldn't add
-  diagnostic value for this specific test file.
+  `lint`; lint script now covers `.jsx`.
+- **`react/prop-types` — first pass disabled it project-wide with a
+  rationale comment. Correctly pushed back on: the real fix was cheap
+  (exactly one component, `AuthProvider`, takes a prop) and is now in
+  place instead** — `prop-types` added as a dependency, `AuthProvider`
+  validates `children`, and the ESLint rule is fully enabled again.
+- **Deferred, not fixed:** wrapping `health.test.js`'s assertions for
+  extra failure context. Chai-http talks directly to the in-process
+  Express app (no real network hop), so a rejected request here is
+  already an assertion failure with a clear Mocha stack trace — the
+  extra wrapping wouldn't add diagnostic value for this specific file.
 
+### Deferred with a real guard, not just a comment: bearer token in `localStorage`
 
+**Not fixed, and not claimed as fixed.** `frontend/src/services/apiClient.js`
+stores the JWT in `localStorage`, which an XSS can read and exfiltrate. The
+real fix is an HttpOnly/Secure/SameSite cookie session with CSRF
+protection — a genuine architecture change (backend `Set-Cookie` handling,
+`credentials: 'include'` CORS) that doesn't fit a scaffold where Sprint 3's
+frontend auth flow doesn't exist yet.
+
+First pass only documented this in a code comment, which CodeRabbit
+correctly called out as not a real compensating control. It now also has
+one: `backend/src/config/env.js` **refuses to start with `NODE_ENV=production`**
+unless `ACKNOWLEDGE_LOCALSTORAGE_JWT_RISK=true` is explicitly set — so this
+can no longer reach a real deployment silently. Must be fixed properly (or
+consciously re-acknowledged) before this app is used for anything more
+sensitive than course-project notes.
+
+## Status
 
 - ✅ Sprint 1, Task 1 — repo scaffold + PostgreSQL migrations
 - ✅ Sprint 1, Task 2 — backend auth API (signup / login / logout)
@@ -149,7 +188,7 @@ logs (no fixed shape, so static redact paths can't cover it reliably);
   - `POST /api/auth/logout` — requires a valid Bearer token (stateless JWT;
     see the `KNOWN LIMITATION` note in `src/controllers/auth.controller.js`
     regarding server-side revocation)
-  - 11 Mocha/Chai tests passing (data-access layer stubbed with `sinon`,
+  - 12 Mocha/Chai tests passing (data-access layer stubbed with `sinon`,
     so the suite runs without a live PostgreSQL connection)
 - ✅ Sprint 1, Task 3 — remaining Phase 1 deliverables
   - ER diagram, formal API contract document (`docs/`)

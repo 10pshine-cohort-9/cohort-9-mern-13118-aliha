@@ -20,8 +20,19 @@ process.on('SIGTERM', () => {
   }, SHUTDOWN_TIMEOUT_MS);
   forceExitTimer.unref();
 
-  server.close(() => {
+  server.close((err) => {
     clearTimeout(forceExitTimer);
+
+    if (err) {
+      // server.close() reports failure via this argument (e.g.
+      // ERR_SERVER_NOT_RUNNING if it was already closed) — silently
+      // exiting 0 here would tell an orchestrator the shutdown succeeded
+      // when it didn't.
+      logger.error({ err }, 'Server failed to close cleanly during shutdown');
+      process.exit(1);
+      return;
+    }
+
     process.exit(0);
   });
 });
