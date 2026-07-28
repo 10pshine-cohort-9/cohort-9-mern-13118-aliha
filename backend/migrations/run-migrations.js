@@ -12,10 +12,10 @@
  *   node migrations/run-migrations.js --down   revert the most recent migration
  *   npm run migrate / npm run migrate:down     (see package.json)
  */
-const fs = require("node:fs");
-const path = require("node:path");
-const { Pool } = require("pg");
-const env = require("../src/config/env");
+const fs = require('fs');
+const path = require('path');
+const { Pool } = require('pg');
+const env = require('../src/config/env');
 
 const MIGRATIONS_DIR = __dirname;
 
@@ -34,14 +34,12 @@ async function ensureMigrationsTable(client) {
 function listUpMigrations() {
   return fs
     .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql") && !f.endsWith(".down.sql"))
+    .filter((f) => f.endsWith('.sql') && !f.endsWith('.down.sql'))
     .sort();
 }
 
 async function getAppliedMigrations(client) {
-  const { rows } = await client.query(
-    "SELECT name FROM schema_migrations ORDER BY id ASC",
-  );
+  const { rows } = await client.query('SELECT name FROM schema_migrations ORDER BY id ASC');
   return rows.map((r) => r.name);
 }
 
@@ -50,28 +48,24 @@ async function migrateUp() {
   try {
     await ensureMigrationsTable(client);
     const applied = await getAppliedMigrations(client);
-    const pending = listUpMigrations().filter(
-      (name) => !applied.includes(name),
-    );
+    const pending = listUpMigrations().filter((name) => !applied.includes(name));
 
     if (pending.length === 0) {
-      console.log("No pending migrations. Database is up to date.");
+      console.log('No pending migrations. Database is up to date.');
       return;
     }
 
     for (const name of pending) {
-      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, name), "utf8");
+      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, name), 'utf8');
       console.log(`Applying migration: ${name}`);
-      await client.query("BEGIN");
+      await client.query('BEGIN');
       try {
         await client.query(sql);
-        await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [
-          name,
-        ]);
-        await client.query("COMMIT");
+        await client.query('INSERT INTO schema_migrations (name) VALUES ($1)', [name]);
+        await client.query('COMMIT');
         console.log(`  -> applied ${name}`);
       } catch (err) {
-        await client.query("ROLLBACK");
+        await client.query('ROLLBACK');
         throw new Error(`Migration failed: ${name}\n${err.message}`);
       }
     }
@@ -87,32 +81,28 @@ async function migrateDown() {
     const applied = await getAppliedMigrations(client);
 
     if (applied.length === 0) {
-      console.log("No migrations to revert.");
+      console.log('No migrations to revert.');
       return;
     }
 
     const last = applied[applied.length - 1];
-    const downFile = last.replace(/\.sql$/, ".down.sql");
+    const downFile = last.replace(/\.sql$/, '.down.sql');
     const downPath = path.join(MIGRATIONS_DIR, downFile);
 
     if (!fs.existsSync(downPath)) {
-      throw new Error(
-        `No down migration found for ${last} (expected ${downFile})`,
-      );
+      throw new Error(`No down migration found for ${last} (expected ${downFile})`);
     }
 
-    const sql = fs.readFileSync(downPath, "utf8");
+    const sql = fs.readFileSync(downPath, 'utf8');
     console.log(`Reverting migration: ${last}`);
-    await client.query("BEGIN");
+    await client.query('BEGIN');
     try {
       await client.query(sql);
-      await client.query("DELETE FROM schema_migrations WHERE name = $1", [
-        last,
-      ]);
-      await client.query("COMMIT");
+      await client.query('DELETE FROM schema_migrations WHERE name = $1', [last]);
+      await client.query('COMMIT');
       console.log(`  -> reverted ${last}`);
     } catch (err) {
-      await client.query("ROLLBACK");
+      await client.query('ROLLBACK');
       throw new Error(`Rollback failed: ${last}\n${err.message}`);
     }
   } finally {
@@ -121,7 +111,7 @@ async function migrateDown() {
 }
 
 async function main() {
-  const isDown = process.argv.includes("--down");
+  const isDown = process.argv.includes('--down');
   try {
     if (isDown) {
       await migrateDown();

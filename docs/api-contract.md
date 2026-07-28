@@ -95,34 +95,60 @@ Errors:
 
 ---
 
-## Notes — planned (Sprint 2)
+## Notes — implemented (Sprint 2)
 
 All routes below require `Authorization: Bearer <token>` and are always
 scoped to the authenticated user (`req.user.id`) — one user can never
-read, edit, or delete another user's note.
+read, edit, or delete another user's note. Every note-specific query is
+written as `WHERE id = :id AND user_id = :currentUser` together, so a
+mismatched note simply doesn't match the query — there's no separate
+"check ownership" step to forget.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/notes` | List all notes owned by the authenticated user |
-| POST | `/api/notes` | Create a new note (`title`, `content`) |
-| GET | `/api/notes/:id` | Fetch a single note (owner only — 404 if it exists but isn't yours) |
-| PUT | `/api/notes/:id` | Update an existing note (owner only) |
-| DELETE | `/api/notes/:id` | Delete a note (owner only) |
+### `GET /api/notes`
+Returns all notes owned by the caller, newest-updated first.
 
-Expected note shape:
+Success — `200 OK`:
 ```json
-{
-  "id": 1,
-  "user_id": 1,
-  "title": "Grocery list",
-  "content": { "ops": [{ "insert": "Milk, eggs, bread\n" }] },
-  "created_at": "...",
-  "updated_at": "..."
-}
+{ "status": "success", "data": { "notes": [ { "id": 1, "user_id": 1, "title": "...", "content": {...}, "created_at": "...", "updated_at": "..." } ] } }
 ```
-(`content` is `JSONB` — shown here as a Quill-style delta; the frontend's
-rich-text library choice in Sprint 3 determines the exact shape, but it
-is always stored/returned as structured JSON, never a raw HTML string.)
+
+### `POST /api/notes`
+Request:
+```json
+{ "title": "Grocery list", "content": { "ops": [{ "insert": "Milk, eggs, bread\n" }] } }
+```
+Success — `201 Created`: `{ "status": "success", "data": { "note": {...} } }`
+
+Errors: `400` if `title` is missing/empty/over 200 chars, or `content` is
+missing or not a JSON object.
+
+### `GET /api/notes/:id`
+Success — `200 OK`: `{ "status": "success", "data": { "note": {...} } }`
+
+Errors:
+| Status | Cause |
+|---|---|
+| 400 | `:id` isn't a positive integer |
+| 404 | Note doesn't exist, **or exists but belongs to another user** — identical response either way, never confirms a note ID is "real but not yours" |
+
+### `PUT /api/notes/:id`
+Request — either or both fields:
+```json
+{ "title": "Updated title" }
+```
+A partial update (only `title`, or only `content`) preserves the other
+field's existing value rather than nulling it out.
+
+Success — `200 OK`: `{ "status": "success", "data": { "note": {...} } }`
+
+Errors: same `400`/`404` semantics as `GET /api/notes/:id`, plus `400` if
+neither `title` nor `content` is provided, or a provided field fails
+validation.
+
+### `DELETE /api/notes/:id`
+Success — `204 No Content` (empty body).
+
+Errors: same `400`/`404` semantics as `GET /api/notes/:id`.
 
 ## Users — planned / optional (Sprint 3, Profile screen)
 

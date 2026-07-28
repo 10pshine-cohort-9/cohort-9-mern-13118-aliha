@@ -10,6 +10,7 @@
     "migrate": "node migrations/run-migrations.js",
     "migrate:down": "node migrations/run-migrations.js --down",
     "test": "NODE_ENV=test JWT_SECRET=test-only-secret-do-not-use-in-prod mocha --recursive tests --timeout 10000",
+    "test:coverage": "NODE_ENV=test JWT_SECRET=test-only-secret-do-not-use-in-prod nyc --reporter=lcov --reporter=text mocha --recursive tests --timeout 10000",
     "lint": "eslint src"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "chai-http": "^4.4.0",
     "eslint": "^8.57.0",
     "mocha": "^10.7.0",
+    "nyc": "^17.1.0",
     "sinon": "^18.0.0"
   }
 }

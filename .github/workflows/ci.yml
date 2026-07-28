@@ -48,14 +48,37 @@ jobs:
       - run: npm run lint
       - run: npm test
 
-  # SonarQube quality gate — enabled from Sprint 2 once the scanner token/
-  # server URL are provisioned by the client (see STS Section 4.7 / 8.4).
+  # SonarQube quality gate. Needs one repo secret before this can run:
+  # SONAR_TOKEN (see docs/SONARQUBE_SETUP.md for how to get one, both for
+  # SonarCloud and a self-hosted server). Runs after backend/frontend so
+  # it never uploads coverage for a build that's already failing tests.
+  #
+  # Currently commented out because SONAR_TOKEN isn't provisioned in this
+  # repo's secrets yet — uncomment once it is (Settings -> Secrets and
+  # variables -> Actions -> New repository secret).
+  #
   # sonarqube:
   #   name: SonarQube Quality Gate
+  #   needs: [backend, frontend]
   #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0 # SonarQube wants full history for blame/new-code analysis
+  #         persist-credentials: false
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #     - name: Generate backend coverage
+  #       working-directory: backend
+  #       run: npm ci && npm run test:coverage
+  #     - name: Generate frontend coverage
+  #       working-directory: frontend
+  #       run: npm ci && npm run test:coverage
   #     - uses: SonarSource/sonarqube-scan-action@v2
   #       env:
   #         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  #         # Omit SONAR_HOST_URL entirely for SonarCloud (it's the
+  #         # default target). Set it as a repo secret too if pointing at
+  #         # a self-hosted server instead.
   #         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
