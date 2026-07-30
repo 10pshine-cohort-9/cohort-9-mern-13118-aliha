@@ -75,11 +75,19 @@ async function updateForUser(id, userId, { title, content }) {
  * Returns true if a row was actually deleted, false if nothing matched.
  */
 async function deleteForUser(id, userId) {
-  const { rowCount } = await pool.query(
-    "DELETE FROM notes WHERE id = $1 AND user_id = $2",
-    [id, userId],
-  );
-  return rowCount > 0;
+  try {
+    const { rowCount } = await pool.query(
+      "DELETE FROM notes WHERE id = $1 AND user_id = $2",
+      [id, userId],
+    );
+    return rowCount > 0;
+  } catch (err) {
+    const wrappedError = new Error(
+      `Failed to delete note for noteId=${id}, userId=${userId}: ${err.message}`,
+    );
+    wrappedError.cause = err;
+    throw wrappedError;
+  }
 }
 
 module.exports = {

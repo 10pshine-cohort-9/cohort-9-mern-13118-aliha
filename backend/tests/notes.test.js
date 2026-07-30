@@ -37,13 +37,18 @@ afterEach(() => sinon.restore());
 
 describe("Notes API — authentication requirement", () => {
   it("rejects every notes route without a Bearer token", async () => {
-    const responses = await Promise.all([
-      chai.request(app).get("/api/notes"),
-      chai.request(app).post("/api/notes").send({ title: "x", content: {} }),
-      chai.request(app).get("/api/notes/1"),
-      chai.request(app).put("/api/notes/1").send({ title: "x" }),
-      chai.request(app).delete("/api/notes/1"),
-    ]);
+    let responses;
+    try {
+      responses = await Promise.all([
+        chai.request(app).get("/api/notes"),
+        chai.request(app).post("/api/notes").send({ title: "x", content: {} }),
+        chai.request(app).get("/api/notes/1"),
+        chai.request(app).put("/api/notes/1").send({ title: "x" }),
+        chai.request(app).delete("/api/notes/1"),
+      ]);
+    } catch (err) {
+      throw new Error(`Notes auth requests failed: ${err.message}`);
+    }
 
     responses.forEach((res) => expect(res).to.have.status(401));
   });
@@ -55,10 +60,15 @@ describe("GET /api/notes", () => {
       .stub(notesRepository, "findAllByUserId")
       .resolves([sampleNote(), sampleNote({ id: 2 })]);
 
-    const res = await chai
-      .request(app)
-      .get("/api/notes")
-      .set("Authorization", authHeader());
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .get("/api/notes")
+        .set("Authorization", authHeader());
+    } catch (err) {
+      throw new Error(`GET /api/notes failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(200);
     expect(res.body.data.notes).to.have.length(2);
@@ -70,36 +80,51 @@ describe("POST /api/notes", () => {
   it("creates a note and returns 201", async () => {
     sinon.stub(notesRepository, "create").resolves(sampleNote());
 
-    const res = await chai
-      .request(app)
-      .post("/api/notes")
-      .set("Authorization", authHeader())
-      .send({
-        title: "Grocery list",
-        content: { ops: [{ insert: "Milk\n" }] },
-      });
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .post("/api/notes")
+        .set("Authorization", authHeader())
+        .send({
+          title: "Grocery list",
+          content: { ops: [{ insert: "Milk\n" }] },
+        });
+    } catch (err) {
+      throw new Error(`POST /api/notes failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(201);
     expect(res.body.data.note).to.include({ title: "Grocery list" });
   });
 
   it("rejects a missing title with 400", async () => {
-    const res = await chai
-      .request(app)
-      .post("/api/notes")
-      .set("Authorization", authHeader())
-      .send({ content: {} });
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .post("/api/notes")
+        .set("Authorization", authHeader())
+        .send({ content: {} });
+    } catch (err) {
+      throw new Error(`POST /api/notes failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(400);
     expect(res.body.details.errors).to.include("title is required");
   });
 
   it("rejects non-object content with 400", async () => {
-    const res = await chai
-      .request(app)
-      .post("/api/notes")
-      .set("Authorization", authHeader())
-      .send({ title: "x", content: "not an object" });
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .post("/api/notes")
+        .set("Authorization", authHeader())
+        .send({ title: "x", content: "not an object" });
+    } catch (err) {
+      throw new Error(`POST /api/notes failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(400);
     expect(res.body.details.errors).to.include("content must be a JSON object");
@@ -110,10 +135,15 @@ describe("GET /api/notes/:id", () => {
   it("returns the note when owned by the caller", async () => {
     sinon.stub(notesRepository, "findByIdForUser").resolves(sampleNote());
 
-    const res = await chai
-      .request(app)
-      .get("/api/notes/1")
-      .set("Authorization", authHeader());
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .get("/api/notes/1")
+        .set("Authorization", authHeader());
+    } catch (err) {
+      throw new Error(`GET /api/notes/1 failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(200);
     expect(res.body.data.note.id).to.equal(1);
@@ -122,10 +152,15 @@ describe("GET /api/notes/:id", () => {
   it("returns 404 for a note that doesn't exist or isn't the caller's", async () => {
     sinon.stub(notesRepository, "findByIdForUser").resolves(null);
 
-    const res = await chai
-      .request(app)
-      .get("/api/notes/999")
-      .set("Authorization", authHeader());
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .get("/api/notes/999")
+        .set("Authorization", authHeader());
+    } catch (err) {
+      throw new Error(`GET /api/notes/999 failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(404);
   });
@@ -133,10 +168,15 @@ describe("GET /api/notes/:id", () => {
   it("returns 400 for a non-numeric id, without ever reaching the repository", async () => {
     const repoSpy = sinon.spy(notesRepository, "findByIdForUser");
 
-    const res = await chai
-      .request(app)
-      .get("/api/notes/not-a-number")
-      .set("Authorization", authHeader());
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .get("/api/notes/not-a-number")
+        .set("Authorization", authHeader());
+    } catch (err) {
+      throw new Error(`GET /api/notes/not-a-number failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(400);
     expect(repoSpy.called).to.be.false;
@@ -149,11 +189,16 @@ describe("PUT /api/notes/:id", () => {
       .stub(notesRepository, "updateForUser")
       .resolves(sampleNote({ title: "Updated" }));
 
-    const res = await chai
-      .request(app)
-      .put("/api/notes/1")
-      .set("Authorization", authHeader())
-      .send({ title: "Updated", content: { ops: [{ insert: "New\n" }] } });
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .put("/api/notes/1")
+        .set("Authorization", authHeader())
+        .send({ title: "Updated", content: { ops: [{ insert: "New\n" }] } });
+    } catch (err) {
+      throw new Error(`PUT /api/notes/1 failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(200);
     expect(res.body.data.note.title).to.equal("Updated");
@@ -211,21 +256,31 @@ describe("PUT /api/notes/:id", () => {
   it("returns 404 when updating a note that doesn't exist or isn't the caller's", async () => {
     sinon.stub(notesRepository, "updateForUser").resolves(null);
 
-    const res = await chai
-      .request(app)
-      .put("/api/notes/1")
-      .set("Authorization", authHeader())
-      .send({ title: "Renamed" });
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .put("/api/notes/1")
+        .set("Authorization", authHeader())
+        .send({ title: "Renamed" });
+    } catch (err) {
+      throw new Error(`PUT /api/notes/1 failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(404);
   });
 
   it("rejects an empty body with 400", async () => {
-    const res = await chai
-      .request(app)
-      .put("/api/notes/1")
-      .set("Authorization", authHeader())
-      .send({});
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .put("/api/notes/1")
+        .set("Authorization", authHeader())
+        .send({});
+    } catch (err) {
+      throw new Error(`PUT /api/notes/1 failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(400);
   });
@@ -235,21 +290,46 @@ describe("DELETE /api/notes/:id", () => {
   it("deletes an owned note and returns 204", async () => {
     sinon.stub(notesRepository, "deleteForUser").resolves(true);
 
-    const res = await chai
-      .request(app)
-      .delete("/api/notes/1")
-      .set("Authorization", authHeader());
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .delete("/api/notes/1")
+        .set("Authorization", authHeader());
+    } catch (err) {
+      throw new Error(`DELETE /api/notes/1 failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(204);
+  });
+
+  it("surfaces repository delete errors with note-specific context", async () => {
+    const repositoryError = new Error("db down");
+    sinon.stub(pool, "query").rejects(repositoryError);
+
+    try {
+      await notesRepository.deleteForUser(1, AUTH_USER_ID);
+      throw new Error("Expected deleteForUser to reject");
+    } catch (err) {
+      expect(err.message).to.include("Failed to delete note");
+      expect(err.message).to.include("noteId=1");
+      expect(err.message).to.include("userId=1");
+      expect(err.cause).to.equal(repositoryError);
+    }
   });
 
   it("returns 404 for a note that doesn't exist or isn't the caller's", async () => {
     sinon.stub(notesRepository, "deleteForUser").resolves(false);
 
-    const res = await chai
-      .request(app)
-      .delete("/api/notes/1")
-      .set("Authorization", authHeader());
+    let res;
+    try {
+      res = await chai
+        .request(app)
+        .delete("/api/notes/1")
+        .set("Authorization", authHeader());
+    } catch (err) {
+      throw new Error(`DELETE /api/notes/1 failed: ${err.message}`);
+    }
 
     expect(res).to.have.status(404);
   });

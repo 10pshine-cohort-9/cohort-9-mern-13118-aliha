@@ -54,8 +54,9 @@ async function getAppliedMigrations(client) {
 }
 
 async function migrateUp() {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_KEY]);
     try {
       await ensureMigrationsTable(client);
@@ -92,13 +93,16 @@ async function migrateUp() {
   } catch (err) {
     throw new Error(`migrateUp failed: ${err.message}`, { cause: err });
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
 
 async function migrateDown() {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_KEY]);
     try {
       await ensureMigrationsTable(client);
@@ -139,7 +143,9 @@ async function migrateDown() {
   } catch (err) {
     throw new Error(`migrateDown failed: ${err.message}`, { cause: err });
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
 
