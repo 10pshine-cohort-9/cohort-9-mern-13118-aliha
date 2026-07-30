@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const pool = require("../config/db");
 
 /**
  * Every query here that touches a specific note takes BOTH id and userId
@@ -52,26 +52,40 @@ async function create({ userId, title, content }) {
  * when provided, so `null` is a safe "not provided" sentinel here.)
  */
 async function updateForUser(id, userId, { title, content }) {
-  const { rows } = await pool.query(
-    `UPDATE notes
-        SET title = COALESCE($1, title),
-            content = COALESCE($2, content)
-      WHERE id = $3 AND user_id = $4
-     RETURNING id, user_id, title, content, created_at, updated_at`,
-    [title ?? null, content ?? null, id, userId],
-  );
-  return rows[0] || null;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE notes
+          SET title = COALESCE($1, title),
+              content = COALESCE($2, content)
+        WHERE id = $3 AND user_id = $4
+       RETURNING id, user_id, title, content, created_at, updated_at`,
+      [title ?? null, content ?? null, id, userId],
+    );
+    return rows[0] || null;
+  } catch (err) {
+    const wrappedError = new Error(
+      `Failed to update note for noteId=${id}, userId=${userId}: ${err.message}`,
+    );
+    wrappedError.cause = err;
+    throw wrappedError;
+  }
 }
 
 /**
  * Returns true if a row was actually deleted, false if nothing matched.
  */
 async function deleteForUser(id, userId) {
-  const { rowCount } = await pool.query('DELETE FROM notes WHERE id = $1 AND user_id = $2', [
-    id,
-    userId,
-  ]);
+  const { rowCount } = await pool.query(
+    "DELETE FROM notes WHERE id = $1 AND user_id = $2",
+    [id, userId],
+  );
   return rowCount > 0;
 }
 
-module.exports = { findAllByUserId, findByIdForUser, create, updateForUser, deleteForUser };
+module.exports = {
+  findAllByUserId,
+  findByIdForUser,
+  create,
+  updateForUser,
+  deleteForUser,
+};
