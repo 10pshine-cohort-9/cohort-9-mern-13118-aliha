@@ -8,6 +8,15 @@ const server = app.listen(env.port, () => {
   logger.info(`Backend server listening on port ${env.port} [${env.nodeEnv}]`);
 });
 
+server.on('error', (err) => {
+  // Without this listener, a bind failure (e.g. EADDRINUSE — something
+  // else already using this port) is an unhandled 'error' event, which
+  // Node turns into an uncaught exception: a raw stack trace instead of
+  // a clear, logged reason for why startup failed.
+  logger.error({ err }, `Server failed to start on port ${env.port}`);
+  process.exit(1);
+});
+
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
 

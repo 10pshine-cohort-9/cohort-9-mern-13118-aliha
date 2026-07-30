@@ -138,12 +138,11 @@ describe('PUT /api/notes/:id', () => {
     expect(res.body.data.note.title).to.equal('Updated');
   });
 
-  it('fetches the existing note to preserve content on a title-only update', async () => {
-    const existing = sampleNote();
-    sinon.stub(notesRepository, 'findByIdForUser').resolves(existing);
+  it('passes only the provided field through on a title-only update, leaving content undefined for COALESCE to preserve', async () => {
     const updateStub = sinon
       .stub(notesRepository, 'updateForUser')
       .resolves(sampleNote({ title: 'Renamed' }));
+    const findSpy = sinon.spy(notesRepository, 'findByIdForUser');
 
     const res = await chai
       .request(app)
@@ -152,12 +151,18 @@ describe('PUT /api/notes/:id', () => {
       .send({ title: 'Renamed' });
 
     expect(res).to.have.status(200);
-    expect(updateStub.calledWith(1, AUTH_USER_ID, { title: 'Renamed', content: existing.content }))
-      .to.be.true;
+    // No pre-read: the old read-then-merge approach had a race (another
+    // request's concurrent update could land in the gap between the read
+    // and the write, and get silently overwritten). The fix relies on
+    // PostgreSQL's own COALESCE in a single atomic UPDATE instead, so
+    // there should be no separate findByIdForUser call at all.
+    expect(findSpy.called).to.be.false;
+    expect(updateStub.calledWith(1, AUTH_USER_ID, { title: 'Renamed', content: undefined })).to.be
+      .true;
   });
 
-  it('returns 404 when updating a note that is not the caller\'s', async () => {
-    sinon.stub(notesRepository, 'findByIdForUser').resolves(null);
+  it("returns 404 when updating a note that doesn't exist or isn't the caller's", async () => {
+    sinon.stub(notesRepository, 'updateForUser').resolves(null);
 
     const res = await chai
       .request(app)

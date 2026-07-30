@@ -40,7 +40,7 @@ function assertRequiredEnv() {
     process.exit(1);
   }
 
-  const KNOWN_PLACEHOLDER_SECRETS = ['replace_with_strong_secret'];
+  const KNOWN_PLACEHOLDER_SECRETS = ['CHANGE_ME__THIS_IS_NOT_A_REAL_SECRET'];
   const MIN_JWT_SECRET_LENGTH = 32;
 
   if (KNOWN_PLACEHOLDER_SECRETS.includes(env.jwtSecret)) {

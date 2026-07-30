@@ -21,28 +21,17 @@ async function getNote(userId, noteId) {
 }
 
 async function updateNote(userId, noteId, { title, content }) {
-  const updates = {};
-  if (title !== undefined) updates.title = title.trim();
-  if (content !== undefined) updates.content = content;
+  const updated = await notesRepository.updateForUser(noteId, userId, {
+    title: title !== undefined ? title.trim() : undefined,
+    content,
+  });
 
-  // A partial update (only title, or only content) still needs both
-  // columns written, since the UPDATE always sets both — fetch whichever
-  // wasn't provided so we don't overwrite it with NULL.
-  if (updates.title === undefined || updates.content === undefined) {
-    const existing = await notesRepository.findByIdForUser(noteId, userId);
-    if (!existing) {
-      throw new AppError('Note not found', 404);
-    }
-    if (updates.title === undefined) updates.title = existing.title;
-    if (updates.content === undefined) updates.content = existing.content;
-  }
-
-  const updated = await notesRepository.updateForUser(noteId, userId, updates);
   if (!updated) {
-    // Note existed during the read above but is gone now (deleted
-    // concurrently) — still a 404, not a 500.
+    // Covers both "never existed"/"not yours" and "existed but was
+    // deleted concurrently" — either way, a clean 404, not a 500.
     throw new AppError('Note not found', 404);
   }
+
   return updated;
 }
 

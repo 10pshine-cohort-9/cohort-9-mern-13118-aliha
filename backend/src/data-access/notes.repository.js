@@ -41,18 +41,24 @@ async function create({ userId, title, content }) {
 }
 
 /**
- * Returns the updated row, or null if no note matched (either it doesn't
- * exist, or it exists but isn't owned by userId — the query can't tell
- * the difference, which is exactly the point).
+ * Partial update: only columns actually provided (non-undefined) get
+ * overwritten. Deliberately a single atomic UPDATE rather than
+ * "read the existing row, merge in JS, write it back" — that read-then-write
+ * pattern has a real race: another request could update the note in the
+ * gap between this function's read and its write, and this write would
+ * silently stomp that concurrent change with now-stale data. COALESCE
+ * lets PostgreSQL itself decide what to keep, in one statement, with no
+ * such gap. (title/content are validated to never legitimately be `null`
+ * when provided, so `null` is a safe "not provided" sentinel here.)
  */
 async function updateForUser(id, userId, { title, content }) {
   const { rows } = await pool.query(
     `UPDATE notes
-        SET title = $1,
-            content = $2
+        SET title = COALESCE($1, title),
+            content = COALESCE($2, content)
       WHERE id = $3 AND user_id = $4
      RETURNING id, user_id, title, content, created_at, updated_at`,
-    [title, content, id, userId],
+    [title ?? null, content ?? null, id, userId],
   );
   return rows[0] || null;
 }
