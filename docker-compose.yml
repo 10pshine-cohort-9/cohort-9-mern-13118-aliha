@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: notes-app-postgres
+    restart: unless-stopped
+    environment:
+      # No fallback defaults on credentials, deliberately: a ${VAR:-default}
+      # here would mean anyone who forgets to create a root .env silently
+      # gets a known, guessable password instead of an error telling them
+      # to set one. `:?` makes `docker compose up` fail loudly instead.
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in a root .env file (see .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in a root .env file (see .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in a root .env file (see .env.example)}
+    ports:
+      # Bound to loopback only — this database should never be reachable
+      # from outside your own machine, even accidentally on a shared network.
+      # Port itself isn't sensitive, so it's fine to default.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

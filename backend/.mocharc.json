@@ -1,0 +1,5 @@
+{
+  "spec": "tests/**/*.test.js",
+  "file": "tests/globalTeardown.js",
+  "timeout": 10000
+}
