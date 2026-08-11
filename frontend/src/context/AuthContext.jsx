@@ -1,18 +1,38 @@
 import { createContext, useContext, useState } from 'react';
 import PropTypes from 'prop-types';
+import apiClient from '../services/apiClient';
 
 const AuthContext = createContext(null);
 
-/**
- * Holds the current authenticated user + token for the whole app.
- * Sprint 1 scaffold only: no login/signup wiring yet (that's the next
- * Sprint 1 backend task, followed by Sprint 3 frontend wiring against it).
- */
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  const value = { user, setUser, token, setToken };
+  async function login(email, password) {
+    const res = await apiClient.post('/auth/login', { email, password });
+    const { user: loggedInUser, token } = res.data.data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(loggedInUser));
+    setUser(loggedInUser);
+  }
+
+  async function signup(name, email, password) {
+    const res = await apiClient.post('/auth/signup', { name, email, password });
+    const { user: newUser, token } = res.data.data;
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(newUser));
+    setUser(newUser);
+  }
+
+  function logout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  }
+
+  const value = { user, login, signup, logout };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
