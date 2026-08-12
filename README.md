@@ -13,7 +13,7 @@ and delete their own notes.
 
 ## Project layout
 
-```
+```text
 /backend    Express REST API (controllers -> services -> data-access)
 /frontend   React SPA
 ```
@@ -34,7 +34,9 @@ docker compose up -d
 cd backend
 cp .env.example .env
 ```
+
 Edit `backend/.env`:
+
 - `DATABASE_URL` — match the credentials from the root `.env`
 - `JWT_SECRET` — generate one: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 
@@ -60,8 +62,7 @@ npm test
 `main` (production) ← `develop` (integration) ← `feature/frontend|backend/<name>`
 or `bugfix/frontend|backend/<name>`.
 
-## Docs
+## Notes
 
-- [`docs/er-diagram.md`](docs/er-diagram.md) — database schema
-- [`docs/api-contract.md`](docs/api-contract.md) — API endpoints
-- [`docs/SONARQUBE_SETUP.md`](docs/SONARQUBE_SETUP.md) — local SonarQube setup
+- The backend must connect to PostgreSQL at `127.0.0.1:5433` by default, unless the `POSTGRES_PORT` in `DATABASE_URL` is changed.
+- Keep `.env` values aligned with the Docker Compose configuration before starting the app.

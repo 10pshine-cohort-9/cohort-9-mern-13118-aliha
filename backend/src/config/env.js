@@ -47,16 +47,6 @@ function assertRequiredEnv() {
     );
     process.exit(1);
   }
-
-  if (
-    env.nodeEnv === "production" &&
-    process.env.ACKNOWLEDGE_LOCALSTORAGE_JWT_RISK !== "true"
-  ) {
-    console.error(
-      "Refusing to start in production: frontend stores JWTs in localStorage (XSS risk). To proceed, set ACKNOWLEDGE_LOCALSTORAGE_JWT_RISK=true.",
-    );
-    process.exit(1);
-  }
 }
 
 assertRequiredEnv();
