@@ -1,11 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import SignupPage from './pages/SignupPage.jsx';
-import DashboardPage from './pages/DashboardPage.jsx';
-import NoteEditorPage from './pages/NoteEditorPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
+import SignupPage from "./pages/SignupPage.jsx";
+import DashboardPage from "./pages/DashboardPage.jsx";
+import NoteEditorPage from "./pages/NoteEditorPage.tsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
 
 export default function App() {
   return (

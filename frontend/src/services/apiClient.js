@@ -8,10 +8,8 @@ const viteEnv = (() => {
   }
 })();
 
-const isProd =
-  viteEnv.PROD ??
-  (typeof process !== "undefined" && process.env.NODE_ENV === "production");
-const apiBaseUrl = viteEnv.VITE_API_BASE_URL || process.env.VITE_API_BASE_URL;
+const isProd = viteEnv.PROD ?? false;
+const apiBaseUrl = viteEnv.VITE_API_BASE_URL;
 
 if (isProd && !apiBaseUrl) {
   throw new Error("VITE_API_BASE_URL is required in production.");

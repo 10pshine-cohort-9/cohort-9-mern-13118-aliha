@@ -1,9 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
 
+type NoteRecord = {
+  id: number;
+  title: string;
+  content?: { text?: string } | null;
+};
+
+type NoteResponse = {
+  data: {
+    note: NoteRecord;
+  };
+};
+
+type SavePayload = {
+  title: string;
+  content: { text: string };
+};
+
+type ApiError = {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+    };
+  };
+};
+
 export default function NoteEditorPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id?: string }>();
   const isNew = !id;
   const navigate = useNavigate();
 
@@ -11,6 +37,7 @@ export default function NoteEditorPage() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -24,16 +51,20 @@ export default function NoteEditorPage() {
     setError("");
 
     apiClient
-      .get(`/notes/${id}`)
+      .get<NoteResponse>(`/notes/${id}`)
       .then((res) => {
         if (ignore) return;
         const note = res.data.data.note;
         setTitle(note.title);
         setText(note.content?.text || "");
       })
-      .catch(() => {
+      .catch((err: ApiError) => {
         if (!ignore) {
-          setError("Note not found");
+          if (err.response?.status === 404) {
+            setError("Note not found");
+          } else {
+            setError(err.response?.data?.message || "Could not load note");
+          }
         }
       })
       .finally(() => {
@@ -47,32 +78,46 @@ export default function NoteEditorPage() {
     };
   }, [id, isNew]);
 
-  async function handleSave(e) {
+  async function handleSave(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (saving || deleting) return;
+
     setError("");
     setSaving(true);
     const content = { text };
+
     try {
+      const payload: SavePayload = { title, content };
+
       if (isNew) {
-        await apiClient.post("/notes", { title, content });
+        await apiClient.post("/notes", payload);
       } else {
-        await apiClient.put(`/notes/${id}`, { title, content });
+        await apiClient.put(`/notes/${id}`, payload);
       }
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || "Could not save note");
+      const apiError = err as ApiError;
+      setError(apiError.response?.data?.message || "Could not save note");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!window.confirm("Delete this note?")) return;
+    if (!id || saving || deleting || !window.confirm("Delete this note?"))
+      return;
+
+    setDeleting(true);
+    setError("");
+
     try {
       await apiClient.delete(`/notes/${id}`);
       navigate("/dashboard");
-    } catch {
-      setError("Could not delete note");
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.response?.data?.message || "Could not delete note");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -102,15 +147,23 @@ export default function NoteEditorPage() {
           />
         </div>
         {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={saving}>
+        <button type="submit" disabled={saving || deleting}>
           {saving ? "Saving..." : "Save"}
         </button>
-        <button type="button" onClick={() => navigate("/dashboard")}>
+        <button
+          type="button"
+          onClick={() => navigate("/dashboard")}
+          disabled={saving || deleting}
+        >
           Cancel
         </button>
         {!isNew && (
-          <button type="button" onClick={handleDelete}>
-            Delete
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving || deleting}
+          >
+            {deleting ? "Deleting..." : "Delete"}
           </button>
         )}
       </form>

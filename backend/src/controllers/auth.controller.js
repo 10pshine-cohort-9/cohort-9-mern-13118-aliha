@@ -41,7 +41,7 @@ async function signup(req, res, next) {
 
     res.status(201).json({
       status: "success",
-      data: { user, token, csrfToken },
+      data: { user, csrfToken },
     });
   } catch (err) {
     next(err);
@@ -61,7 +61,7 @@ async function login(req, res, next) {
 
     res.status(200).json({
       status: "success",
-      data: { user, token, csrfToken },
+      data: { user, csrfToken },
     });
   } catch (err) {
     next(err);
