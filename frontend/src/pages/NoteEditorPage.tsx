@@ -49,6 +49,8 @@ export default function NoteEditorPage() {
     let ignore = false;
     setLoading(true);
     setError("");
+    setTitle("");
+    setText("");
 
     apiClient
       .get<NoteResponse>(`/notes/${id}`)
@@ -57,6 +59,7 @@ export default function NoteEditorPage() {
         const note = res.data.data.note;
         setTitle(note.title);
         setText(note.content?.text || "");
+        setError("");
       })
       .catch((err: ApiError) => {
         if (!ignore) {

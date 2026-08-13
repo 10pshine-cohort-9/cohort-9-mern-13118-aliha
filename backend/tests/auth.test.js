@@ -33,6 +33,15 @@ describe("POST /api/auth/signup", () => {
     expect(res).to.have.status(201);
     expect(res.body.data.user).to.not.have.property("password_hash");
     expect(res.body.data).to.have.property("csrfToken").that.is.a("string");
+    expect(res.headers["set-cookie"]).to.satisfy((cookies) => {
+      if (!Array.isArray(cookies)) return false;
+      const csrfCookie = cookies.find((c) => c.startsWith("csrfToken="));
+      if (!csrfCookie) return false;
+      const cookieValue = decodeURIComponent(
+        csrfCookie.split("=")[1].split(";")[0],
+      );
+      return cookieValue === res.body.data.csrfToken;
+    });
     expect(res.headers["set-cookie"]).to.satisfy(
       (cookies) =>
         Array.isArray(cookies) &&
@@ -113,6 +122,15 @@ describe("POST /api/auth/login", () => {
 
     expect(res).to.have.status(200);
     expect(res.body.data).to.have.property("csrfToken").that.is.a("string");
+    expect(res.headers["set-cookie"]).to.satisfy((cookies) => {
+      if (!Array.isArray(cookies)) return false;
+      const csrfCookie = cookies.find((c) => c.startsWith("csrfToken="));
+      if (!csrfCookie) return false;
+      const cookieValue = decodeURIComponent(
+        csrfCookie.split("=")[1].split(";")[0],
+      );
+      return cookieValue === res.body.data.csrfToken;
+    });
     expect(res.headers["set-cookie"]).to.satisfy(
       (cookies) =>
         Array.isArray(cookies) &&
@@ -150,6 +168,8 @@ describe("POST /api/auth/login", () => {
 });
 
 describe("POST /api/auth/logout", () => {
+  afterEach(() => sinon.restore());
+
   it("rejects a request with no Bearer token", async () => {
     const res = await chai.request(app).post("/api/auth/logout");
     expect(res).to.have.status(401);
@@ -171,5 +191,93 @@ describe("POST /api/auth/logout", () => {
 
     expect(res).to.have.status(200);
     expect(res.body.status).to.equal("success");
+  });
+
+  it("succeeds with valid cookie auth and matching CSRF token", async () => {
+    const passwordHash = await bcrypt.hash("supersecret123", 4);
+    sinon.stub(usersRepository, "findByEmail").resolves({
+      id: 1,
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      password_hash: passwordHash,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const loginRes = await chai.request(app).post("/api/auth/login").send({
+      email: "ada@example.com",
+      password: "supersecret123",
+    });
+
+    expect(loginRes).to.have.status(200);
+    const csrfToken = loginRes.body.data.csrfToken;
+    const cookies = loginRes.headers["set-cookie"];
+
+    const logoutRes = await chai
+      .request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", cookies.join("; "))
+      .set("X-CSRF-Token", csrfToken);
+
+    expect(logoutRes).to.have.status(200);
+    expect(logoutRes.body.status).to.equal("success");
+  });
+
+  it("rejects cookie auth logout with missing CSRF token", async () => {
+    const passwordHash = await bcrypt.hash("supersecret123", 4);
+    sinon.stub(usersRepository, "findByEmail").resolves({
+      id: 1,
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      password_hash: passwordHash,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const loginRes = await chai.request(app).post("/api/auth/login").send({
+      email: "ada@example.com",
+      password: "supersecret123",
+    });
+
+    expect(loginRes).to.have.status(200);
+    const cookies = loginRes.headers["set-cookie"];
+
+    const logoutRes = await chai
+      .request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", cookies.join("; "));
+
+    expect(logoutRes).to.have.status(403);
+    expect(logoutRes.body.message).to.include("CSRF");
+  });
+
+  it("rejects cookie auth logout with mismatched CSRF token", async () => {
+    const passwordHash = await bcrypt.hash("supersecret123", 4);
+    sinon.stub(usersRepository, "findByEmail").resolves({
+      id: 1,
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      password_hash: passwordHash,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    const loginRes = await chai.request(app).post("/api/auth/login").send({
+      email: "ada@example.com",
+      password: "supersecret123",
+    });
+
+    expect(loginRes).to.have.status(200);
+    const cookies = loginRes.headers["set-cookie"];
+    const wrongCsrfToken = "wrong-csrf-token-value";
+
+    const logoutRes = await chai
+      .request(app)
+      .post("/api/auth/logout")
+      .set("Cookie", cookies.join("; "))
+      .set("X-CSRF-Token", wrongCsrfToken);
+
+    expect(logoutRes).to.have.status(403);
+    expect(logoutRes.body.message).to.include("CSRF");
   });
 });
