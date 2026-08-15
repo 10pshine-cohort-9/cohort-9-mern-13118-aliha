@@ -1,8 +1,6 @@
-const pool = require('../config/db');
+const pool = require("../config/db");
 
-// Never select password_hash except in findByEmail, which auth.service
-// needs for bcrypt.compare. Every other query returns only safe columns.
-const SAFE_COLUMNS = 'id, name, email, created_at, updated_at';
+const SAFE_COLUMNS = "id, name, email, created_at, updated_at";
 
 async function findByEmail(email) {
   const { rows } = await pool.query(
@@ -15,7 +13,10 @@ async function findByEmail(email) {
 }
 
 async function findById(id) {
-  const { rows } = await pool.query(`SELECT ${SAFE_COLUMNS} FROM users WHERE id = $1`, [id]);
+  const { rows } = await pool.query(
+    `SELECT ${SAFE_COLUMNS} FROM users WHERE id = $1`,
+    [id],
+  );
   return rows[0] || null;
 }
 

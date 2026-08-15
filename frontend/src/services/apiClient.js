@@ -1,34 +1,39 @@
-import axios from 'axios';
+import axios from "axios";
 
-/**
- * Shared Axios instance for all backend calls.
- * Every protected endpoint per the STS API contract expects
- * `Authorization: Bearer <token>` — attached automatically here once a
- * token exists (set by the Sprint 3 login flow).
- *
- * SECURITY TRADE-OFF (accepted, not accidental): the JWT is persisted in
- * localStorage so it survives a page refresh. localStorage is readable by
- * any script in the page, so a successful XSS on this app could exfiltrate
- * the token and reuse it until it expires (JWT_EXPIRES_IN, default 1h).
- *
- * The stronger alternative is an HttpOnly, Secure, SameSite cookie-based
- * session, which JS can never read even during an XSS — but that requires
- * backend Set-Cookie handling, CSRF protection, and CORS changes to allow
- * credentials, none of which exist yet. Revisit before this app handles
- * anything more sensitive than personal notes, or before a production
- * deploy. Until then: keep JWT_EXPIRES_IN short, and treat any XSS finding
- * elsewhere in the app as critical specifically because of this.
- */
+const viteEnv = (() => {
+  try {
+    return Function("return import.meta.env")();
+  } catch {
+    return {};
+  }
+})();
+
+const isProd = viteEnv.PROD ?? false;
+const apiBaseUrl = viteEnv.VITE_API_BASE_URL;
+
+if (isProd && !apiBaseUrl) {
+  throw new Error("VITE_API_BASE_URL is required in production.");
+}
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api',
-  headers: { 'Content-Type': 'application/json' },
+  baseURL: apiBaseUrl || "http://localhost:4000/api",
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = window.localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const csrfCookie =
+    typeof document !== "undefined"
+      ? document.cookie
+          .split("; ")
+          .find((entry) => entry.startsWith("csrfToken="))
+      : null;
+
+  if (csrfCookie) {
+    const csrfToken = decodeURIComponent(csrfCookie.split("=")[1]);
+    config.headers["X-CSRF-Token"] = csrfToken;
   }
+
   return config;
 });
 

@@ -1,22 +1,17 @@
-const pino = require('pino');
-const env = require('../config/env');
-
-/**
- * Application-wide structured logger.
- * Sensitive fields are redacted so credentials/tokens never hit log output.
- */
+const pino = require("pino");
+const env = require("../config/env");
 const logger = pino({
-  level: env.nodeEnv === 'test' ? 'silent' : env.logLevel,
+  level: env.nodeEnv === "test" ? "silent" : env.logLevel,
   timestamp: pino.stdTimeFunctions.isoTime,
   redact: {
     paths: [
-      'req.headers.authorization',
-      'password',
-      'password_hash',
-      '*.password',
-      '*.password_hash',
+      "req.headers.authorization",
+      "password",
+      "password_hash",
+      "*.password",
+      "*.password_hash",
     ],
-    censor: '[REDACTED]',
+    censor: "[REDACTED]",
   },
 });
 
