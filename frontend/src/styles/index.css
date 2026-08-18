@@ -1,10 +1,90 @@
-* {
-  box-sizing: border-box;
+@import "tailwindcss";
+
+:root {
+  --background: oklch(0.982 0.014 91);
+  --foreground: oklch(0.34 0.045 295);
+
+  --card: oklch(0.997 0.005 95);
+  --card-foreground: oklch(0.34 0.045 295);
+
+  --primary: oklch(0.78 0.1 305);
+  --primary-foreground: oklch(0.34 0.045 295);
+
+  --secondary: oklch(0.94 0.03 200);
+  --secondary-foreground: oklch(0.34 0.045 295);
+
+  --muted: oklch(0.955 0.015 95);
+  --muted-foreground: oklch(0.55 0.03 295);
+
+  --destructive: oklch(0.72 0.13 20);
+  --destructive-foreground: oklch(0.34 0.045 295);
+
+  --border: oklch(0.9 0.02 295);
+
+  --mint: oklch(0.9 0.07 165);
+  --peach: oklch(0.9 0.07 45);
+  --butter: oklch(0.94 0.08 95);
+  --sky: oklch(0.9 0.06 240);
+  --lilac: oklch(0.88 0.07 305);
+  --blush: oklch(0.91 0.06 15);
+
+  --radius: 1.25rem;
+
+  --shadow-soft: 0 10px 30px -18px oklch(0.4 0.08 300 / 0.45);
+  --shadow-lift: 0 18px 40px -22px oklch(0.4 0.08 300 / 0.55);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+
+  --color-mint: var(--mint);
+  --color-peach: var(--peach);
+  --color-butter: var(--butter);
+  --color-sky: var(--sky);
+  --color-lilac: var(--lilac);
+  --color-blush: var(--blush);
+
+  --radius-2xl: var(--radius);
+
+  --font-display: "Fraunces", serif;
+  --font-sans: "Nunito", sans-serif;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #f7f7f8;
-  color: #1a1a1a;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.paper-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.lift-shadow:hover {
+  box-shadow: var(--shadow-lift);
+}
+
+.ruled-paper {
+  background-image: repeating-linear-gradient(
+    var(--card),
+    var(--card) 31px,
+    var(--border) 32px
+  );
+  background-attachment: local;
 }

@@ -4,7 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import SignupPage from "./pages/SignupPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
-import NoteEditorPage from "./pages/NoteEditorPage.tsx";
+import NoteEditorPage from "./pages/NoteEditorPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 
 export default function App() {

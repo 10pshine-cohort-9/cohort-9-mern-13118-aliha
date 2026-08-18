@@ -1,0 +1,142 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import apiClient from '../services/apiClient';
+import EditorToolbar from '../components/EditorToolbar';
+
+export default function NoteEditorPage() {
+  const { id } = useParams();
+  const isNew = !id;
+  const navigate = useNavigate();
+
+  const [title, setTitle] = useState('');
+  const [loading, setLoading] = useState(!isNew);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const editor = useEditor({
+    extensions: [StarterKit],
+    editorProps: {
+      attributes: {
+        class: 'ruled-paper min-h-[240px] px-1 py-2 focus:outline-none leading-8',
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (isNew || !editor) return;
+    apiClient
+      .get(`/notes/${id}`)
+      .then((res) => {
+        const note = res.data.data.note;
+        setTitle(note.title);
+        editor.commands.setContent(note.content);
+      })
+      .catch(() => setError('Note not found'))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isNew, editor]);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!editor) return;
+    setError('');
+    setSaving(true);
+    const content = editor.getJSON();
+    try {
+      if (isNew) {
+        await apiClient.post('/notes', { title, content });
+      } else {
+        await apiClient.put(`/notes/${id}`, { title, content });
+      }
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not save note');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm('Delete this note?')) return;
+    try {
+      await apiClient.delete(`/notes/${id}`);
+      navigate('/dashboard');
+    } catch {
+      setError('Could not delete note');
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="max-w-3xl mx-auto px-5 pb-16">
+        <div className="paper-card h-96 animate-pulse" />
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-3xl mx-auto px-5 pb-16">
+      <form onSubmit={handleSave}>
+        <div className="paper-card overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border">
+            <span className="w-2.5 h-2.5 rounded-full bg-peach" />
+            <span className="w-2.5 h-2.5 rounded-full bg-butter" />
+            <span className="w-2.5 h-2.5 rounded-full bg-mint" />
+            <span className="ml-2 text-xs text-muted-foreground">
+              {isNew ? 'New note' : 'Editing note'}
+            </span>
+          </div>
+
+          <div className="p-6">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Untitled"
+              required
+              maxLength={200}
+              className="w-full font-display text-2xl font-semibold bg-transparent focus:outline-none mb-3"
+            />
+            <div className="h-px bg-border mb-4" />
+
+            <EditorToolbar editor={editor} />
+            <EditorContent editor={editor} />
+          </div>
+        </div>
+
+        {error && (
+          <p role="alert" className="text-destructive text-sm mt-3">
+            {error}
+          </p>
+        )}
+
+        <div className="flex items-center gap-3 mt-5">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-2xl bg-primary text-primary-foreground font-semibold px-6 py-2.5 shadow-[var(--shadow-soft)] disabled:opacity-60"
+          >
+            {saving ? 'Saving...' : 'Save note'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="rounded-2xl border border-border font-semibold px-6 py-2.5"
+          >
+            Back to notes
+          </button>
+          {!isNew && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="ml-auto text-sm text-muted-foreground hover:text-destructive"
+            >
+              Delete note
+            </button>
+          )}
+        </div>
+      </form>
+    </main>
+  );
+}
