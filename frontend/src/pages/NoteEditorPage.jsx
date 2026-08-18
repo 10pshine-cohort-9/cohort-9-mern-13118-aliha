@@ -1,70 +1,87 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import apiClient from '../services/apiClient';
-import EditorToolbar from '../components/EditorToolbar';
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import apiClient from "../services/apiClient";
+import EditorToolbar from "../components/EditorToolbar";
 
 export default function NoteEditorPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
 
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const editor = useEditor({
     extensions: [StarterKit],
     editorProps: {
       attributes: {
-        class: 'ruled-paper min-h-[240px] px-1 py-2 focus:outline-none leading-8',
+        class:
+          "ruled-paper min-h-[240px] px-1 py-2 focus:outline-none leading-8",
       },
     },
   });
 
   useEffect(() => {
     if (isNew || !editor) return;
+
+    let isActive = true;
+    setLoading(true);
+    setError("");
+
     apiClient
       .get(`/notes/${id}`)
       .then((res) => {
+        if (!isActive) return;
+
         const note = res.data.data.note;
         setTitle(note.title);
         editor.commands.setContent(note.content);
       })
-      .catch(() => setError('Note not found'))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!isActive) return;
+        setError("Note not found");
+      })
+      .finally(() => {
+        if (isActive) setLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isNew, editor]);
 
   async function handleSave(e) {
     e.preventDefault();
     if (!editor) return;
-    setError('');
+    setError("");
     setSaving(true);
     const content = editor.getJSON();
     try {
       if (isNew) {
-        await apiClient.post('/notes', { title, content });
+        await apiClient.post("/notes", { title, content });
       } else {
         await apiClient.put(`/notes/${id}`, { title, content });
       }
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not save note');
+      setError(err.response?.data?.message || "Could not save note");
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!window.confirm('Delete this note?')) return;
+    if (!window.confirm("Delete this note?")) return;
     try {
       await apiClient.delete(`/notes/${id}`);
-      navigate('/dashboard');
+      navigate("/dashboard");
     } catch {
-      setError('Could not delete note');
+      setError("Could not delete note");
     }
   }
 
@@ -85,7 +102,7 @@ export default function NoteEditorPage() {
             <span className="w-2.5 h-2.5 rounded-full bg-butter" />
             <span className="w-2.5 h-2.5 rounded-full bg-mint" />
             <span className="ml-2 text-xs text-muted-foreground">
-              {isNew ? 'New note' : 'Editing note'}
+              {isNew ? "New note" : "Editing note"}
             </span>
           </div>
 
@@ -117,11 +134,11 @@ export default function NoteEditorPage() {
             disabled={saving}
             className="rounded-2xl bg-primary text-primary-foreground font-semibold px-6 py-2.5 shadow-[var(--shadow-soft)] disabled:opacity-60"
           >
-            {saving ? 'Saving...' : 'Save note'}
+            {saving ? "Saving..." : "Save note"}
           </button>
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate("/dashboard")}
             className="rounded-2xl border border-border font-semibold px-6 py-2.5"
           >
             Back to notes

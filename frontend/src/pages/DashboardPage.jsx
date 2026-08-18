@@ -1,11 +1,18 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import PropTypes from 'prop-types';
-import apiClient from '../services/apiClient';
-import { EmptyDoodle } from '../components/Doodles';
-import { extractText } from '../lib/tiptapText';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import PropTypes from "prop-types";
+import apiClient from "../services/apiClient";
+import { EmptyDoodle } from "../components/Doodles";
+import { extractText } from "../lib/tiptapText";
 
-const TINTS = ['bg-mint', 'bg-peach', 'bg-butter', 'bg-sky', 'bg-lilac', 'bg-blush'];
+const TINTS = [
+  "bg-mint",
+  "bg-peach",
+  "bg-butter",
+  "bg-sky",
+  "bg-lilac",
+  "bg-blush",
+];
 
 function NoteCard({ note, tint, onDelete }) {
   const preview = extractText(note.content);
@@ -15,7 +22,9 @@ function NoteCard({ note, tint, onDelete }) {
       <div className="p-5">
         <Link to={`/notes/${note.id}`} className="block">
           <h3 className="font-display text-lg font-semibold">{note.title}</h3>
-          <p className="text-muted-foreground text-sm mt-1 line-clamp-3">{preview}</p>
+          <p className="text-muted-foreground text-sm mt-1 line-clamp-3">
+            {preview}
+          </p>
         </Link>
         <div className="flex items-center justify-between mt-4 text-xs text-muted-foreground">
           <span>Edited {new Date(note.updated_at).toLocaleDateString()}</span>
@@ -46,20 +55,25 @@ NoteCard.propTypes = {
 export default function DashboardPage() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     apiClient
-      .get('/notes')
+      .get("/notes")
       .then((res) => setNotes(res.data.data.notes))
-      .catch(() => setError('Could not load notes'))
+      .catch(() => setError("Could not load notes"))
       .finally(() => setLoading(false));
   }, []);
 
   async function handleDelete(id) {
-    if (!window.confirm('Delete this note?')) return;
-    await apiClient.delete(`/notes/${id}`);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+    if (!window.confirm("Delete this note?")) return;
+
+    try {
+      await apiClient.delete(`/notes/${id}`);
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch {
+      setError("Could not delete note");
+    }
   }
 
   return (
@@ -68,7 +82,8 @@ export default function DashboardPage() {
         <div>
           <h1 className="font-display text-3xl font-semibold">Your notes</h1>
           <p className="text-muted-foreground mt-1">
-            {notes.length} note{notes.length === 1 ? '' : 's'} kept safely for you.
+            {notes.length} note{notes.length === 1 ? "" : "s"} kept safely for
+            you.
           </p>
         </div>
         <Link
@@ -79,7 +94,11 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {error && <p role="alert" className="text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      )}
 
       {loading && (
         <div className="grid sm:grid-cols-2 gap-5">
@@ -92,7 +111,9 @@ export default function DashboardPage() {
       {!loading && notes.length === 0 && (
         <div className="paper-card p-10 text-center">
           <EmptyDoodle />
-          <p className="text-muted-foreground mt-4">No notes yet. Start writing your first one.</p>
+          <p className="text-muted-foreground mt-4">
+            No notes yet. Start writing your first one.
+          </p>
           <Link
             to="/notes/new"
             className="inline-block mt-4 rounded-full bg-mint px-5 py-2.5 font-semibold"
