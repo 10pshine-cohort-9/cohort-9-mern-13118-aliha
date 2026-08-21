@@ -1,5 +1,5 @@
-DROP INDEX IF EXISTS idx_notes_user_category;
-DROP INDEX IF EXISTS idx_notes_user_pinned_updated;
+DROP INDEX CONCURRENTLY IF EXISTS idx_notes_user_category;
+DROP INDEX CONCURRENTLY IF EXISTS idx_notes_user_pinned_updated;
 
 ALTER TABLE notes
     DROP COLUMN IF EXISTS is_archived,

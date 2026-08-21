@@ -2,12 +2,18 @@ const notesService = require("../services/notes.service");
 const {
   validateCreateNote,
   validateUpdateNote,
+  validateListQuery,
   parseNoteId,
 } = require("../validators/notes.validators");
 const AppError = require("../utils/AppError");
 
 async function list(req, res, next) {
   try {
+    const queryErrors = validateListQuery(req.query);
+    if (queryErrors.length > 0) {
+      throw new AppError("Validation failed", 400, { errors: queryErrors });
+    }
+
     const { q, tag, category, archived } = req.query;
     const notes = await notesService.listNotes(req.user.id, {
       search: q?.trim(),
@@ -28,12 +34,14 @@ async function create(req, res, next) {
       throw new AppError("Validation failed", 400, { errors });
     }
 
-    const { title, content, tags, category } = req.body;
+    const { title, content, tags, category, is_pinned, is_archived } = req.body;
     const note = await notesService.createNote(req.user.id, {
       title,
       content,
       tags,
       category,
+      is_pinned,
+      is_archived,
     });
 
     res.status(201).json({ status: "success", data: { note } });

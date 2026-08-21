@@ -75,7 +75,14 @@ export default function NoteEditorPage() {
       .filter(Boolean);
     try {
       if (isNew) {
-        await apiClient.post("/notes", { title, content, tags, category });
+        await apiClient.post("/notes", {
+          title,
+          content,
+          tags,
+          category,
+          is_pinned: isPinned,
+          is_archived: isArchived,
+        });
       } else {
         await apiClient.put(`/notes/${id}`, {
           title,
@@ -137,19 +144,27 @@ export default function NoteEditorPage() {
             <div className="h-px bg-border mb-4" />
 
             <div className="grid gap-3 sm:grid-cols-2 mb-4">
-              <input
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="Tags, separated by commas"
-                className="rounded-xl border border-border bg-transparent px-3 py-2 text-sm focus:outline-none"
-              />
-              <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Category"
-                maxLength={100}
-                className="rounded-xl border border-border bg-transparent px-3 py-2 text-sm focus:outline-none"
-              />
+              <label className="grid gap-1 text-sm" htmlFor="note-tags">
+                <span>Tags</span>
+                <input
+                  id="note-tags"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="Separated by commas"
+                  className="rounded-xl border border-border bg-transparent px-3 py-2 text-sm focus:outline-none"
+                />
+              </label>
+              <label className="grid gap-1 text-sm" htmlFor="note-category">
+                <span>Category</span>
+                <input
+                  id="note-category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Category"
+                  maxLength={100}
+                  className="rounded-xl border border-border bg-transparent px-3 py-2 text-sm focus:outline-none"
+                />
+              </label>
             </div>
 
             <div className="flex gap-5 mb-4 text-sm">

@@ -12,8 +12,8 @@
  *   node migrations/run-migrations.js --down   revert the most recent migration
  *   npm run migrate / npm run migrate:down     (see package.json)
  */
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const { Pool } = require("pg");
 const env = require("../src/config/env");
 
@@ -43,7 +43,13 @@ function listUpMigrations() {
   return fs
     .readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql") && !f.endsWith(".down.sql"))
-    .sort();
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function isNonTransactional(sql) {
+  return sql
+    .split(/\r?\n/)
+    .some((line) => line.trim() === "-- migration: non-transactional");
 }
 
 async function getAppliedMigrations(client) {
@@ -73,17 +79,21 @@ async function migrateUp() {
       for (const name of pending) {
         const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, name), "utf8");
         console.log(`Applying migration: ${name}`);
-        await client.query("BEGIN");
         try {
-          await client.query(sql);
+          if (isNonTransactional(sql)) {
+            await client.query(sql);
+          } else {
+            await client.query("BEGIN");
+            await client.query(sql);
+          }
           await client.query(
             "INSERT INTO schema_migrations (name) VALUES ($1)",
             [name],
           );
-          await client.query("COMMIT");
+          if (!isNonTransactional(sql)) await client.query("COMMIT");
           console.log(`  -> applied ${name}`);
         } catch (err) {
-          await client.query("ROLLBACK");
+          if (!isNonTransactional(sql)) await client.query("ROLLBACK");
           throw new Error(`Migration failed: ${name}\n${err.message}`);
         }
       }
@@ -125,16 +135,23 @@ async function migrateDown() {
 
       const sql = fs.readFileSync(downPath, "utf8");
       console.log(`Reverting migration: ${last}`);
-      await client.query("BEGIN");
+      const nonTransactional = isNonTransactional(
+        fs.readFileSync(path.join(MIGRATIONS_DIR, last), "utf8"),
+      );
       try {
-        await client.query(sql);
+        if (nonTransactional) {
+          await client.query(sql);
+        } else {
+          await client.query("BEGIN");
+          await client.query(sql);
+        }
         await client.query("DELETE FROM schema_migrations WHERE name = $1", [
           last,
         ]);
-        await client.query("COMMIT");
+        if (!nonTransactional) await client.query("COMMIT");
         console.log(`  -> reverted ${last}`);
       } catch (err) {
-        await client.query("ROLLBACK");
+        if (!nonTransactional) await client.query("ROLLBACK");
         throw new Error(`Rollback failed: ${last}\n${err.message}`);
       }
     } finally {

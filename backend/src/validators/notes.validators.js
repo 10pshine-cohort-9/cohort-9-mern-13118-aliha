@@ -62,6 +62,25 @@ function validateCreateNote(payload = {}) {
   return errors;
 }
 
+function validateListQuery(query = {}) {
+  const errors = [];
+  for (const field of ["q", "tag", "category"]) {
+    if (query[field] !== undefined && typeof query[field] !== "string") {
+      errors.push(`${field} must be a string`);
+    }
+  }
+
+  if (
+    query.archived !== undefined &&
+    (typeof query.archived !== "string" ||
+      !["true", "false"].includes(query.archived))
+  ) {
+    errors.push('archived must be either "true" or "false"');
+  }
+
+  return errors;
+}
+
 function validateUpdateNote(payload = {}) {
   const { title, content, tags, category, is_pinned, is_archived } = payload;
   const errors = [];
@@ -106,6 +125,7 @@ function parseNoteId(rawId) {
 module.exports = {
   validateCreateNote,
   validateUpdateNote,
+  validateListQuery,
   parseNoteId,
   MAX_TITLE_LENGTH,
   MAX_CATEGORY_LENGTH,

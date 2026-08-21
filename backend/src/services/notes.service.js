@@ -7,7 +7,7 @@ async function listNotes(userId, filters) {
 
 async function createNote(
   userId,
-  { title, content, tags = [], category = null },
+  { title, content, tags = [], category = null, is_pinned, is_archived },
 ) {
   return notesRepository.create({
     userId,
@@ -15,15 +15,22 @@ async function createNote(
     content,
     tags: normalizeTags(tags),
     category: normalizeCategory(category),
+    is_pinned,
+    is_archived,
   });
 }
 
 async function getNote(userId, noteId) {
-  const note = await notesRepository.findByIdForUser(noteId, userId);
-  if (!note) {
-    throw new AppError("Note not found", 404);
+  try {
+    const note = await notesRepository.findByIdForUser(noteId, userId);
+    if (!note) {
+      throw new AppError("Note not found", 404);
+    }
+    return note;
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError("Unable to load note", 500, { cause: err });
   }
-  return note;
 }
 
 async function updateNote(
@@ -38,12 +45,17 @@ async function updateNote(
 
   if (tags !== undefined) changes.tags = normalizeTags(tags);
   if (category !== undefined) changes.category = normalizeCategory(category);
+  if (category !== undefined) changes.categoryProvided = true;
   if (is_pinned !== undefined) changes.is_pinned = is_pinned;
   if (is_archived !== undefined) changes.is_archived = is_archived;
 
-  const updated = await notesRepository.updateForUser(noteId, userId, {
-    ...changes,
-  });
+  let updated;
+  try {
+    updated = await notesRepository.updateForUser(noteId, userId, changes);
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw new AppError("Unable to update note", 500, { cause: err });
+  }
 
   if (!updated) {
     throw new AppError("Note not found", 404);

@@ -43,6 +43,7 @@ function NoteCard({ note, tint, onDelete, onTogglePin, onArchive }) {
               type="button"
               onClick={() => onArchive(note.id)}
               className="hover:text-foreground"
+              hidden={note.is_archived}
             >
               Archive
             </button>
@@ -92,6 +93,10 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
+    let isActive = true;
+    setLoading(true);
+    setError("");
+
     apiClient
       .get("/notes", {
         params: {
@@ -101,9 +106,19 @@ export default function DashboardPage() {
           archived: showArchived || undefined,
         },
       })
-      .then((res) => setNotes(res.data.data.notes))
-      .catch(() => setError("Could not load notes"))
-      .finally(() => setLoading(false));
+      .then((res) => {
+        if (isActive) setNotes(res.data.data.notes);
+      })
+      .catch(() => {
+        if (isActive) setError("Could not load notes");
+      })
+      .finally(() => {
+        if (isActive) setLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
   }, [search, tag, category, showArchived]);
 
   async function handleDelete(id) {
@@ -133,7 +148,9 @@ export default function DashboardPage() {
   async function handleArchive(id) {
     try {
       await apiClient.put(`/notes/${id}`, { is_archived: true });
-      setNotes((prev) => prev.filter((note) => note.id !== id));
+      if (!showArchived) {
+        setNotes((prev) => prev.filter((note) => note.id !== id));
+      }
     } catch {
       setError("Could not archive note");
     }
