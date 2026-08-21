@@ -68,6 +68,7 @@ NoteCard.propTypes = {
     content: PropTypes.shape({ text: PropTypes.string }),
     updated_at: PropTypes.string.isRequired,
     is_pinned: PropTypes.bool,
+    is_archived: PropTypes.bool,
   }).isRequired,
   tint: PropTypes.string.isRequired,
   onDelete: PropTypes.func.isRequired,
