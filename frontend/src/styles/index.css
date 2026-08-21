@@ -88,3 +88,59 @@ body {
   );
   background-attachment: local;
 }
+
+.toolbar-button {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.toolbar-button:hover {
+  background: var(--secondary);
+}
+
+.toolbar-select {
+  min-height: 2.25rem;
+  max-width: 9rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.8rem;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 1.75rem;
+  margin: 0 0.25rem;
+  background: var(--border);
+}
+
+.toolbar-color {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.65rem;
+  background: var(--card);
+  font-weight: 800;
+}
+
+.toolbar-color input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}

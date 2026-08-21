@@ -2,6 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
+import Color from "@tiptap/extension-color";
+import Highlight from "@tiptap/extension-highlight";
+import Image from "@tiptap/extension-image";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import FontFamily from "@tiptap/extension-font-family";
+import { TextStyle } from "@tiptap/extension-text-style";
 import apiClient from "../services/apiClient";
 import EditorToolbar from "../components/EditorToolbar";
 
@@ -20,7 +30,19 @@ export default function NoteEditorPage() {
   const [error, setError] = useState("");
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Underline,
+      TextStyle,
+      FontFamily,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      Link.configure({ openOnClick: false }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Image.configure({ allowBase64: false }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+    ],
     editorProps: {
       attributes: {
         class:
