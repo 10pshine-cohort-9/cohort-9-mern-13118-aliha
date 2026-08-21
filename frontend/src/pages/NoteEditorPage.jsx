@@ -11,6 +11,10 @@ export default function NoteEditorPage() {
   const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [category, setCategory] = useState("");
+  const [isPinned, setIsPinned] = useState(false);
+  const [isArchived, setIsArchived] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +43,10 @@ export default function NoteEditorPage() {
 
         const note = res.data.data.note;
         setTitle(note.title);
+        setTagsInput((note.tags || []).join(", "));
+        setCategory(note.category || "");
+        setIsPinned(note.is_pinned);
+        setIsArchived(note.is_archived);
         editor.commands.setContent(note.content);
       })
       .catch(() => {
@@ -61,11 +69,29 @@ export default function NoteEditorPage() {
     setError("");
     setSaving(true);
     const content = editor.getJSON();
+    const tags = tagsInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
     try {
       if (isNew) {
-        await apiClient.post("/notes", { title, content });
+        await apiClient.post("/notes", {
+          title,
+          content,
+          tags,
+          category,
+          is_pinned: isPinned,
+          is_archived: isArchived,
+        });
       } else {
-        await apiClient.put(`/notes/${id}`, { title, content });
+        await apiClient.put(`/notes/${id}`, {
+          title,
+          content,
+          tags,
+          category,
+          is_pinned: isPinned,
+          is_archived: isArchived,
+        });
       }
       navigate("/dashboard");
     } catch (err) {
@@ -117,6 +143,49 @@ export default function NoteEditorPage() {
             />
             <div className="h-px bg-border mb-4" />
 
+            <div className="grid gap-3 sm:grid-cols-2 mb-4">
+              <label className="grid gap-1 text-sm" htmlFor="note-tags">
+                <span>Tags</span>
+                <input
+                  id="note-tags"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="Separated by commas"
+                  className="rounded-xl border border-border bg-transparent px-3 py-2 text-sm focus:outline-none"
+                />
+              </label>
+              <label className="grid gap-1 text-sm" htmlFor="note-category">
+                <span>Category</span>
+                <input
+                  id="note-category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Category"
+                  maxLength={100}
+                  className="rounded-xl border border-border bg-transparent px-3 py-2 text-sm focus:outline-none"
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-5 mb-4 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isPinned}
+                  onChange={(e) => setIsPinned(e.target.checked)}
+                />{" "}
+                Pin note
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isArchived}
+                  onChange={(e) => setIsArchived(e.target.checked)}
+                />{" "}
+                Archive note
+              </label>
+            </div>
+
             <EditorToolbar editor={editor} />
             <EditorContent editor={editor} />
           </div>
@@ -132,7 +201,7 @@ export default function NoteEditorPage() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-2xl bg-primary text-primary-foreground font-semibold px-6 py-2.5 shadow-[var(--shadow-soft)] disabled:opacity-60"
+            className="rounded-2xl bg-primary text-primary-foreground font-semibold px-6 py-2.5 shadow-(--shadow-soft) disabled:opacity-60"
           >
             {saving ? "Saving..." : "Save note"}
           </button>
