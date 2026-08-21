@@ -32,6 +32,7 @@ beforeEach(() => {
 describe("App routing", () => {
   it("redirects the default route to /login", () => {
     renderAtRoute("/");
+    expect(window.location.pathname).toBe("/login");
     expect(
       screen.getByRole("heading", { name: /welcome back/i }),
     ).toBeInTheDocument();
@@ -46,6 +47,7 @@ describe("App routing", () => {
 
   it("redirects to login when visiting a protected route while logged out", () => {
     renderAtRoute("/dashboard");
+    expect(window.location.pathname).toBe("/login");
     expect(
       screen.getByRole("heading", { name: /welcome back/i }),
     ).toBeInTheDocument();
