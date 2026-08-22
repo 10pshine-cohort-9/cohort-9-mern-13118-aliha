@@ -52,6 +52,13 @@ function isNonTransactional(sql) {
     .some((line) => line.trim() === "-- migration: non-transactional");
 }
 
+function splitSqlStatements(sql) {
+  return sql
+    .split(/;\s*(?=\S)/)
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+}
+
 async function getAppliedMigrations(client) {
   const { rows } = await client.query(
     "SELECT name FROM schema_migrations ORDER BY id ASC",
@@ -81,7 +88,9 @@ async function migrateUp() {
         console.log(`Applying migration: ${name}`);
         try {
           if (isNonTransactional(sql)) {
-            await client.query(sql);
+            for (const statement of splitSqlStatements(sql)) {
+              await client.query(statement);
+            }
           } else {
             await client.query("BEGIN");
             await client.query(sql);

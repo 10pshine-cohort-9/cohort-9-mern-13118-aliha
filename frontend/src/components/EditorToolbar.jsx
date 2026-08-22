@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { useEditorState } from "@tiptap/react";
+import { Editor } from "@tiptap/core";
 
 function preserveSelection(event) {
   event.preventDefault();
@@ -212,5 +213,5 @@ export default function EditorToolbar({ editor }) {
 }
 
 EditorToolbar.propTypes = {
-  editor: PropTypes.object,
+  editor: PropTypes.instanceOf(Editor),
 };

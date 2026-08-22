@@ -5,12 +5,13 @@ ALTER TABLE notes
     ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
 
--- These drops also remove same-named indexes left by an interrupted migration.
-DROP INDEX IF EXISTS idx_notes_user_pinned_updated;
-DROP INDEX IF EXISTS idx_notes_user_category;
+-- These drops also remove same-named invalid indexes left by an interrupted
+-- CREATE INDEX CONCURRENTLY.
+DROP INDEX CONCURRENTLY IF EXISTS idx_notes_user_pinned_updated;
+DROP INDEX CONCURRENTLY IF EXISTS idx_notes_user_category;
 
-CREATE INDEX idx_notes_user_pinned_updated
+CREATE INDEX CONCURRENTLY idx_notes_user_pinned_updated
     ON notes (user_id, is_pinned DESC, updated_at DESC);
 
-CREATE INDEX idx_notes_user_category
+CREATE INDEX CONCURRENTLY idx_notes_user_category
     ON notes (user_id, category);
