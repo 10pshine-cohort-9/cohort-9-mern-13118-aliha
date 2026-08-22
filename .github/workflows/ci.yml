@@ -47,3 +47,35 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+
+  sonarqube:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate backend coverage
+        working-directory: backend
+        run: npm ci && npm run test:coverage
+
+      - name: Generate frontend coverage
+        working-directory: frontend
+        run: npm ci && npm run test:coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-scan-action@v5 # This is correct
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarCloud Quality Gate Check
+        uses: SonarSource/sonarcloud-quality-gate-action@v1 # This is correct
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
