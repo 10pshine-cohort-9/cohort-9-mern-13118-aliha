@@ -11,7 +11,7 @@ import Image from "@tiptap/extension-image";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import FontFamily from "@tiptap/extension-font-family";
-import { TextStyle } from "@tiptap/extension-text-style";
+import { FontSize, TextStyle } from "@tiptap/extension-text-style";
 import apiClient from "../services/apiClient";
 import EditorToolbar from "../components/EditorToolbar";
 
@@ -31,9 +31,14 @@ export default function NoteEditorPage() {
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        bulletList: { keepMarks: true, keepAttributes: true },
+        orderedList: { keepMarks: true, keepAttributes: true },
+        blockquote: {},
+      }),
       Underline,
       TextStyle,
+      FontSize,
       FontFamily,
       Color,
       Highlight.configure({ multicolor: true }),

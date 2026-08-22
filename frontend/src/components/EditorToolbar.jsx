@@ -1,6 +1,16 @@
 import PropTypes from "prop-types";
+import { useEditorState } from "@tiptap/react";
+
+function preserveSelection(event) {
+  event.preventDefault();
+}
 
 export default function EditorToolbar({ editor }) {
+  useEditorState({
+    editor,
+    selector: (snapshot) => snapshot?.transactionNumber ?? 0,
+  });
+
   if (!editor) return null;
 
   const buttons = [
@@ -22,12 +32,6 @@ export default function EditorToolbar({ editor }) {
       "Strikethrough",
       () => editor.chain().focus().toggleStrike().run(),
       "strike",
-    ],
-    [
-      "Code",
-      "Inline code",
-      () => editor.chain().focus().toggleCode().run(),
-      "code",
     ],
     [
       "• List",
@@ -53,20 +57,7 @@ export default function EditorToolbar({ editor }) {
       () => editor.chain().focus().toggleBlockquote().run(),
       "blockquote",
     ],
-    [
-      "Block",
-      "Code block",
-      () => editor.chain().focus().toggleCodeBlock().run(),
-      "codeBlock",
-    ],
   ];
-
-  function setBlockStyle(event) {
-    const value = event.target.value;
-    const chain = editor.chain().focus();
-    if (value === "paragraph") chain.setParagraph().run();
-    else chain.toggleHeading({ level: Number(value) }).run();
-  }
 
   function setFontFamily(event) {
     const value = event.target.value;
@@ -76,9 +67,8 @@ export default function EditorToolbar({ editor }) {
 
   function setFontSize(event) {
     const value = event.target.value;
-    if (value === "default")
-      editor.chain().focus().unsetMark("textStyle").run();
-    else editor.chain().focus().setMark("textStyle", { fontSize: value }).run();
+    if (value === "default") editor.chain().focus().unsetFontSize().run();
+    else editor.chain().focus().setFontSize(value).run();
   }
 
   function setLink() {
@@ -94,44 +84,11 @@ export default function EditorToolbar({ editor }) {
     if (src?.trim()) editor.chain().focus().setImage({ src: src.trim() }).run();
   }
 
-  const headingLevel = editor.getAttributes("heading").level;
   const fontFamily = editor.getAttributes("textStyle").fontFamily || "default";
   const fontSize = editor.getAttributes("textStyle").fontSize || "default";
 
   return (
     <div className="flex flex-wrap items-center gap-1 mb-3 p-2 rounded-xl border border-border bg-muted">
-      <button
-        type="button"
-        title="Zoom out"
-        aria-label="Zoom out"
-        className="toolbar-button"
-      >
-        -
-      </button>
-      <span className="px-2 text-xs font-semibold text-muted-foreground">
-        100%
-      </span>
-      <button
-        type="button"
-        title="Zoom in"
-        aria-label="Zoom in"
-        className="toolbar-button"
-      >
-        +
-      </button>
-      <span className="toolbar-divider" />
-      <select
-        title="Block style"
-        aria-label="Block style"
-        value={headingLevel || "paragraph"}
-        onChange={setBlockStyle}
-        className="toolbar-select"
-      >
-        <option value="paragraph">Paragraph</option>
-        <option value="1">Heading 1</option>
-        <option value="2">Heading 2</option>
-        <option value="3">Heading 3</option>
-      </select>
       <select
         title="Font family"
         aria-label="Font family"
@@ -166,40 +123,18 @@ export default function EditorToolbar({ editor }) {
           title={title}
           aria-label={title}
           aria-pressed={editor.isActive(active)}
+          onMouseDown={preserveSelection}
           onClick={action}
           className={`toolbar-button ${editor.isActive(active) ? "bg-mint" : ""}`}
         >
           {label}
         </button>
       ))}
-      <label title="Text color" className="toolbar-color">
-        <span aria-hidden="true">A</span>
-        <input
-          type="color"
-          aria-label="Text color"
-          onChange={(event) =>
-            editor.chain().focus().setColor(event.target.value).run()
-          }
-        />
-      </label>
-      <label title="Highlight color" className="toolbar-color">
-        <span aria-hidden="true">H</span>
-        <input
-          type="color"
-          aria-label="Highlight color"
-          onChange={(event) =>
-            editor
-              .chain()
-              .focus()
-              .toggleHighlight({ color: event.target.value })
-              .run()
-          }
-        />
-      </label>
       <button
         type="button"
         title="Link"
         aria-label="Link"
+        onMouseDown={preserveSelection}
         onClick={setLink}
         className="toolbar-button"
       >
@@ -209,6 +144,7 @@ export default function EditorToolbar({ editor }) {
         type="button"
         title="Insert image"
         aria-label="Insert image"
+        onMouseDown={preserveSelection}
         onClick={addImage}
         className="toolbar-button"
       >
@@ -220,6 +156,7 @@ export default function EditorToolbar({ editor }) {
           type="button"
           title={`Align ${alignment}`}
           aria-label={`Align ${alignment}`}
+          onMouseDown={preserveSelection}
           onClick={() => editor.chain().focus().setTextAlign(alignment).run()}
           className={`toolbar-button ${editor.isActive({ textAlign: alignment }) ? "bg-mint" : ""}`}
         >
@@ -230,6 +167,7 @@ export default function EditorToolbar({ editor }) {
         type="button"
         title="Horizontal rule"
         aria-label="Horizontal rule"
+        onMouseDown={preserveSelection}
         onClick={() => editor.chain().focus().setHorizontalRule().run()}
         className="toolbar-button"
       >
@@ -239,6 +177,7 @@ export default function EditorToolbar({ editor }) {
         type="button"
         title="Clear formatting"
         aria-label="Clear formatting"
+        onMouseDown={preserveSelection}
         onClick={() =>
           editor.chain().focus().clearNodes().unsetAllMarks().run()
         }
@@ -250,6 +189,7 @@ export default function EditorToolbar({ editor }) {
         type="button"
         title="Undo"
         aria-label="Undo"
+        onMouseDown={preserveSelection}
         disabled={!editor.can().chain().undo().run()}
         onClick={() => editor.chain().focus().undo().run()}
         className="toolbar-button"
@@ -260,6 +200,7 @@ export default function EditorToolbar({ editor }) {
         type="button"
         title="Redo"
         aria-label="Redo"
+        onMouseDown={preserveSelection}
         disabled={!editor.can().chain().redo().run()}
         onClick={() => editor.chain().focus().redo().run()}
         className="toolbar-button"
