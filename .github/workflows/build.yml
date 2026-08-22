@@ -1,0 +1,46 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - develop # Changed from main to develop
+      - main # Keep main as well if needed
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - develop # Monitor PRs to develop
+      - main # Monitor PRs to main
+
+jobs:
+  sonarqube:
+    name: SonarQube
+    runs-on: ubuntu-latest # Changed from windows-latest to ubuntu-latest (faster, cheaper)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate backend coverage
+        working-directory: backend
+        run: npm ci && npm run test:coverage
+
+      - name: Generate frontend coverage
+        working-directory: frontend
+        run: npm ci && npm run test:coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-scan-action@v5 # Changed to SonarCloud action
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          # SONAR_HOST_URL is NOT needed for SonarCloud
+
+      - name: SonarCloud Quality Gate Check
+        uses: SonarSource/sonarcloud-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
