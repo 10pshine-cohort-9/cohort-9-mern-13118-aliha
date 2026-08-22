@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-
+  pull-requests: read
 jobs:
   backend:
     name: Backend (Mocha/Chai)
@@ -70,10 +70,22 @@ jobs:
         run: npm ci && npm run test:coverage
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v7
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+
+      - name: Check SONAR_TOKEN exists
+        shell: bash
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+          echo "SONAR_TOKEN is NOT set"
+          exit 1
+          else
+          echo "SONAR_TOKEN is set"
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: SonarCloud Quality Gate Check
         uses: SonarSource/sonarqube-quality-gate-action@v1
