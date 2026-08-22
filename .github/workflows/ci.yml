@@ -70,12 +70,14 @@ jobs:
         run: npm ci && npm run test:coverage
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-scan-action@v5 # This is correct
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
       - name: SonarCloud Quality Gate Check
-        uses: SonarSource/sonarcloud-quality-gate-action@v1 # This is correct
+        uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
