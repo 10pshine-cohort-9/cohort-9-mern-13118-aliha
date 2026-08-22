@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export default function AppHeader() {
   const location = useLocation();
@@ -8,8 +8,8 @@ export default function AppHeader() {
   const linkClass = (path) =>
     `px-4 py-1.5 rounded-full text-sm font-semibold transition ${
       location.pathname === path
-        ? 'bg-mint text-foreground'
-        : 'text-muted-foreground hover:bg-muted'
+        ? "bg-mint text-foreground"
+        : "text-muted-foreground hover:bg-muted"
     }`;
 
   return (
@@ -18,13 +18,13 @@ export default function AppHeader() {
         <span className="w-9 h-9 flex items-center justify-center rounded-2xl bg-lilac text-lg">
           🪶
         </span>
-        <span className="font-display text-xl font-semibold">Pastel Notes</span>
+        <span className="font-display text-xl font-semibold">Scribble Pal</span>
       </Link>
       <nav className="flex items-center gap-1">
-        <Link to="/dashboard" className={linkClass('/dashboard')}>
+        <Link to="/dashboard" className={linkClass("/dashboard")}>
           Notes
         </Link>
-        <Link to="/profile" className={linkClass('/profile')}>
+        <Link to="/profile" className={linkClass("/profile")}>
           Profile
         </Link>
         <button

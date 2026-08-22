@@ -6,11 +6,13 @@ import SignupPage from "./pages/SignupPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import NoteEditorPage from "./pages/NoteEditorPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
+import { BackdropBlobs } from "./components/Doodles.jsx";
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <BackdropBlobs />
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
