@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import apiClient from "../services/apiClient";
@@ -14,7 +14,7 @@ const TINTS = [
   "bg-blush",
 ];
 
-function NoteCard({ note, tint, onDelete }) {
+function NoteCard({ note, tint, onDelete, onTogglePin, onArchive }) {
   const preview = extractText(note.content);
   return (
     <div className="paper-card lift-shadow transition overflow-hidden">
@@ -27,14 +27,34 @@ function NoteCard({ note, tint, onDelete }) {
           </p>
         </Link>
         <div className="flex items-center justify-between mt-4 text-xs text-muted-foreground">
-          <span>Edited {new Date(note.updated_at).toLocaleDateString()}</span>
-          <button
-            type="button"
-            onClick={() => onDelete(note.id)}
-            className="hover:text-destructive"
-          >
-            Delete
-          </button>
+          <span>
+            {note.is_pinned ? "Pinned · " : ""}Edited{" "}
+            {new Date(note.updated_at).toLocaleDateString()}
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onTogglePin(note)}
+              className="hover:text-foreground"
+            >
+              {note.is_pinned ? "Unpin" : "Pin"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onArchive(note.id)}
+              className="hover:text-foreground"
+              hidden={note.is_archived}
+            >
+              Archive
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(note.id)}
+              className="hover:text-destructive"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -47,23 +67,60 @@ NoteCard.propTypes = {
     title: PropTypes.string.isRequired,
     content: PropTypes.shape({ text: PropTypes.string }),
     updated_at: PropTypes.string.isRequired,
+    is_pinned: PropTypes.bool,
+    is_archived: PropTypes.bool,
   }).isRequired,
   tint: PropTypes.string.isRequired,
   onDelete: PropTypes.func.isRequired,
+  onTogglePin: PropTypes.func.isRequired,
+  onArchive: PropTypes.func.isRequired,
 };
 
 export default function DashboardPage() {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [tag, setTag] = useState("");
+  const [category, setCategory] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+
+  const categories = useMemo(
+    () =>
+      [...new Set(notes.map((note) => note.category).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [notes],
+  );
 
   useEffect(() => {
+    let isActive = true;
+    setLoading(true);
+    setError("");
+
     apiClient
-      .get("/notes")
-      .then((res) => setNotes(res.data.data.notes))
-      .catch(() => setError("Could not load notes"))
-      .finally(() => setLoading(false));
-  }, []);
+      .get("/notes", {
+        params: {
+          q: search || undefined,
+          tag: tag || undefined,
+          category: category || undefined,
+          archived: showArchived || undefined,
+        },
+      })
+      .then((res) => {
+        if (isActive) setNotes(res.data.data.notes);
+      })
+      .catch(() => {
+        if (isActive) setError("Could not load notes");
+      })
+      .finally(() => {
+        if (isActive) setLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [search, tag, category, showArchived]);
 
   async function handleDelete(id) {
     if (!window.confirm("Delete this note?")) return;
@@ -73,6 +130,30 @@ export default function DashboardPage() {
       setNotes((prev) => prev.filter((n) => n.id !== id));
     } catch {
       setError("Could not delete note");
+    }
+  }
+
+  async function handleTogglePin(note) {
+    try {
+      const { data } = await apiClient.put(`/notes/${note.id}`, {
+        is_pinned: !note.is_pinned,
+      });
+      setNotes((prev) =>
+        prev.map((item) => (item.id === note.id ? data.data.note : item)),
+      );
+    } catch {
+      setError("Could not update note");
+    }
+  }
+
+  async function handleArchive(id) {
+    try {
+      await apiClient.put(`/notes/${id}`, { is_archived: true });
+      if (!showArchived) {
+        setNotes((prev) => prev.filter((note) => note.id !== id));
+      }
+    } catch {
+      setError("Could not archive note");
     }
   }
 
@@ -88,10 +169,45 @@ export default function DashboardPage() {
         </div>
         <Link
           to="/notes/new"
-          className="rounded-full bg-primary text-primary-foreground font-semibold px-5 py-2.5 shadow-[var(--shadow-soft)]"
+          className="rounded-full bg-primary text-primary-foreground font-semibold px-5 py-2.5 shadow-(--shadow-soft)"
         >
           + New note
         </Link>
+      </div>
+
+      <div className="paper-card p-4 mb-6 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search title or content"
+          className="rounded-xl border border-border bg-transparent px-3 py-2 focus:outline-none"
+        />
+        <input
+          value={tag}
+          onChange={(e) => setTag(e.target.value.toLowerCase())}
+          placeholder="Filter by tag"
+          className="rounded-xl border border-border bg-transparent px-3 py-2 focus:outline-none"
+        />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="rounded-xl border border-border bg-card px-3 py-2"
+        >
+          <option value="">All categories</option>
+          {categories.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+        <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+          />
+          <span>Archived</span>
+        </label>
       </div>
 
       {error && (
@@ -131,6 +247,8 @@ export default function DashboardPage() {
               note={note}
               tint={TINTS[i % TINTS.length]}
               onDelete={handleDelete}
+              onTogglePin={handleTogglePin}
+              onArchive={handleArchive}
             />
           ))}
         </div>
