@@ -96,7 +96,10 @@ function renderWithRouter(element, initialEntries = ["/"]) {
   );
 }
 
-async function runWorkflow(context, workflow) {
+async function runWorkflow(
+  context: string,
+  workflow: () => Promise<void>,
+): Promise<void> {
   try {
     await workflow();
   } catch (error) {
