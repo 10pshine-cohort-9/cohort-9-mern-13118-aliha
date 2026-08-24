@@ -1,4 +1,4 @@
-const { randomUUID } = require("crypto");
+const { randomUUID } = require("node:crypto");
 
 module.exports = function requestId(req, res, next) {
   req.requestId = req.headers["x-request-id"] || randomUUID();
