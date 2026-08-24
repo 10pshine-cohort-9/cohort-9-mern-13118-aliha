@@ -24,6 +24,7 @@ app.use(
 app.use(
   cors({
     origin: env.corsOrigins,
+    credentials: true,
   }),
 );
 app.use(express.json());

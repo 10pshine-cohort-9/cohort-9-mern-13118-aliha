@@ -63,7 +63,7 @@ function NoteCard({ note, tint, onDelete, onTogglePin, onArchive }) {
 
 NoteCard.propTypes = {
   note: PropTypes.shape({
-    id: PropTypes.number.isRequired,
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
     title: PropTypes.string.isRequired,
     content: PropTypes.shape({ text: PropTypes.string }),
     updated_at: PropTypes.string.isRequired,

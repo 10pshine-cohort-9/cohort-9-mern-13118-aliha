@@ -6,7 +6,7 @@ ALTER TABLE notes
     ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- These drops also remove same-named invalid indexes left by an interrupted
--- CREATE INDEX CONCURRENTLY. The migration runner executes this file outside a transaction.
+-- CREATE INDEX CONCURRENTLY.
 DROP INDEX CONCURRENTLY IF EXISTS idx_notes_user_pinned_updated;
 DROP INDEX CONCURRENTLY IF EXISTS idx_notes_user_category;
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env node
+// @ts-check
 /**
  * Lightweight SQL migration runner for PostgreSQL.
  *
  * Applies *.sql files in this directory in filename order, tracking what
- * has already been applied in a `schema_migrations` table. Each numbered
- * migration (e.g. 001_create_users_table.sql) has a matching
- * `<name>.down.sql` used to revert it.
+      const tag = getDollarTag(sql, index);
  *
  * Usage:
  *   node migrations/run-migrations.js          apply all pending migrations
@@ -29,6 +28,10 @@ const pool = new Pool({ connectionString: env.databaseUrl });
 // both try to apply the same one, racing on the same INSERT.
 const MIGRATION_LOCK_KEY = 7_291_853;
 
+/** @typedef {import("pg").PoolClient} MigrationClient */
+/** @typedef {{ name: string, sql: string, nonTransactional: boolean }} MigrationMetadata */
+
+/** @param {MigrationClient} client */
 async function ensureMigrationsTable(client) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -52,6 +55,118 @@ function isNonTransactional(sql) {
     .some((line) => line.trim() === "-- migration: non-transactional");
 }
 
+/**
+ * Split SQL only at statement terminators outside PostgreSQL quoted values,
+ * comments, and dollar-quoted function bodies.
+ *
+ * @param {string} sql
+ * @returns {string[]}
+ */
+function consumeQuoted(sql, index, quote) {
+  if (sql[index] === "\\" && quote === "'") {
+    return { index: index + 2, quote };
+  }
+  if (sql[index] !== quote) return { index: index + 1, quote };
+  if (sql[index + 1] === quote) return { index: index + 2, quote };
+  return { index: index + 1, quote: null };
+}
+
+function getDollarTag(sql, index) {
+  const match = /^\$[A-Za-z_]\w*\$|^\$\$/.exec(sql.slice(index));
+  return match?.[0] || null;
+}
+
+function consumeBlockComment(sql, index, depth) {
+  if (sql[index] === "/" && sql[index + 1] === "*") {
+    return { index: index + 2, depth: depth + 1 };
+  }
+  if (sql[index] === "*" && sql[index + 1] === "/") {
+    return { index: index + 2, depth: depth - 1 };
+  }
+  return { index: index + 1, depth };
+}
+
+function splitSqlStatements(sql) {
+  /** @type {string[]} */
+  const statements = [];
+  let statementStart = 0;
+  let index = 0;
+  let quote = null;
+  let dollarTag = null;
+  let lineComment = false;
+  let blockCommentDepth = 0;
+
+  while (index < sql.length) {
+    const current = sql[index];
+    const next = sql[index + 1];
+
+    if (lineComment) {
+      lineComment = current !== "\n" && current !== "\r";
+      index += 1;
+      continue;
+    }
+
+    if (blockCommentDepth > 0) {
+      ({ index, depth: blockCommentDepth } = consumeBlockComment(
+        sql,
+        index,
+        blockCommentDepth,
+      ));
+      continue;
+    }
+
+    if (dollarTag) {
+      if (sql.startsWith(dollarTag, index)) {
+        index += dollarTag.length;
+        dollarTag = null;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (quote) {
+      ({ index, quote } = consumeQuoted(sql, index, quote));
+      continue;
+    }
+
+    if (current === "-" && next === "-") {
+      lineComment = true;
+      index += 2;
+      continue;
+    }
+    if (current === "/" && next === "*") {
+      blockCommentDepth = 1;
+      index += 2;
+      continue;
+    }
+    if (current === "'" || current === '"') {
+      quote = current;
+      index += 1;
+      continue;
+    }
+    if (current === "$") {
+      const tag = getDollarTag(sql, index);
+      if (tag) {
+        dollarTag = tag;
+        index += tag.length;
+        continue;
+      }
+    }
+    if (current === ";") {
+      const statement = sql.slice(statementStart, index).trim();
+      if (statement) statements.push(statement);
+      statementStart = index + 1;
+    }
+    index += 1;
+  }
+
+  const finalStatement = sql.slice(statementStart).trim();
+  if (finalStatement) statements.push(finalStatement);
+  return statements;
+}
+
+/** @param {MigrationClient} client */
 async function getAppliedMigrations(client) {
   const { rows } = await client.query(
     "SELECT name FROM schema_migrations ORDER BY id ASC",
@@ -60,6 +175,7 @@ async function getAppliedMigrations(client) {
 }
 
 async function migrateUp() {
+  /** @type {MigrationClient | undefined} */
   let client;
   try {
     client = await pool.connect();
@@ -78,22 +194,30 @@ async function migrateUp() {
 
       for (const name of pending) {
         const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, name), "utf8");
+        /** @type {MigrationMetadata} */
+        const migration = {
+          name,
+          sql,
+          nonTransactional: isNonTransactional(sql),
+        };
         console.log(`Applying migration: ${name}`);
         try {
-          if (isNonTransactional(sql)) {
-            await client.query(sql);
+          if (migration.nonTransactional) {
+            for (const statement of splitSqlStatements(migration.sql)) {
+              await client.query(statement);
+            }
           } else {
             await client.query("BEGIN");
-            await client.query(sql);
+            await client.query(migration.sql);
           }
           await client.query(
             "INSERT INTO schema_migrations (name) VALUES ($1)",
             [name],
           );
-          if (!isNonTransactional(sql)) await client.query("COMMIT");
+          if (!migration.nonTransactional) await client.query("COMMIT");
           console.log(`  -> applied ${name}`);
         } catch (err) {
-          if (!isNonTransactional(sql)) await client.query("ROLLBACK");
+          if (!migration.nonTransactional) await client.query("ROLLBACK");
           throw new Error(`Migration failed: ${name}\n${err.message}`);
         }
       }
@@ -191,4 +315,6 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { splitSqlStatements };
