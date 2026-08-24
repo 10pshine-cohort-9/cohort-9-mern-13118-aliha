@@ -17,6 +17,7 @@ npm-debug.log*
 
 # Test coverage
 coverage/
+.nyc_output/
 
 # Editor / OS
 .DS_Store

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -90,6 +96,15 @@ function renderWithRouter(element, initialEntries = ["/"]) {
   );
 }
 
+async function runWorkflow(context, workflow) {
+  try {
+    await workflow();
+  } catch (error) {
+    console.error(`${context} failed`, error);
+    throw error;
+  }
+}
+
 function AuthProbe() {
   const { user, login, signup, logout } = useAuth();
   return (
@@ -129,40 +144,42 @@ describe("extractText", () => {
 
 describe("AuthProvider", () => {
   it("handles login, signup, logout, and login failure", async () => {
-    apiClient.post
-      .mockResolvedValueOnce({
-        data: { data: { user: { email: "ada@example.com" } } },
-      })
-      .mockResolvedValueOnce({
-        data: { data: { user: { email: "new@example.com" } } },
-      })
-      .mockResolvedValueOnce({});
-    render(
-      <AuthProvider>
-        <AuthProbe />
-      </AuthProvider>,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Login" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("auth-user")).toHaveTextContent(
-        "ada@example.com",
-      ),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Signup" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("auth-user")).toHaveTextContent(
-        "new@example.com",
-      ),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Logout" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("auth-user")).toHaveTextContent("signed out"),
-    );
-    apiClient.post.mockRejectedValueOnce(new Error("failed"));
-    fireEvent.click(screen.getByRole("button", { name: "Login" }));
-    await waitFor(() =>
-      expect(screen.getByTestId("auth-user")).toHaveTextContent("signed out"),
-    );
+    await runWorkflow("Authentication workflow", async () => {
+      apiClient.post
+        .mockResolvedValueOnce({
+          data: { data: { user: { email: "ada@example.com" } } },
+        })
+        .mockResolvedValueOnce({
+          data: { data: { user: { email: "new@example.com" } } },
+        })
+        .mockResolvedValueOnce({});
+      render(
+        <AuthProvider>
+          <AuthProbe />
+        </AuthProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Login" }));
+      await waitFor(() =>
+        expect(screen.getByTestId("auth-user")).toHaveTextContent(
+          "ada@example.com",
+        ),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Signup" }));
+      await waitFor(() =>
+        expect(screen.getByTestId("auth-user")).toHaveTextContent(
+          "new@example.com",
+        ),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Logout" }));
+      await waitFor(() =>
+        expect(screen.getByTestId("auth-user")).toHaveTextContent("signed out"),
+      );
+      apiClient.post.mockRejectedValueOnce(new Error("failed"));
+      fireEvent.click(screen.getByRole("button", { name: "Login" }));
+      await waitFor(() =>
+        expect(screen.getByTestId("auth-user")).toHaveTextContent("signed out"),
+      );
+    });
   });
 });
 
@@ -189,48 +206,63 @@ describe("DashboardPage", () => {
   ];
 
   it("loads notes and supports filtering, pinning, archiving, and deleting", async () => {
-    apiClient.get.mockResolvedValue({ data: { data: { notes } } });
-    apiClient.put
-      .mockResolvedValueOnce({
-        data: { data: { note: { ...notes[0], is_pinned: true } } },
-      })
-      .mockResolvedValueOnce({});
-    apiClient.delete.mockResolvedValue({});
-    window.confirm.mockReturnValue(true);
-    renderWithRouter(<DashboardPage />);
-    expect(
-      await screen.findByRole("heading", { name: "First note" }),
-    ).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText("Search title or content"), {
-      target: { value: "first" },
+    await runWorkflow("Dashboard note-management workflow", async () => {
+      apiClient.get.mockResolvedValue({ data: { data: { notes } } });
+      apiClient.put
+        .mockResolvedValueOnce({
+          data: { data: { note: { ...notes[0], is_pinned: true } } },
+        })
+        .mockResolvedValueOnce({});
+      apiClient.delete.mockResolvedValue({});
+      window.confirm.mockReturnValue(true);
+      renderWithRouter(<DashboardPage />);
+      expect(
+        await screen.findByRole("heading", { name: "First note" }),
+      ).toBeInTheDocument();
+      fireEvent.change(screen.getByPlaceholderText("Search title or content"), {
+        target: { value: "first" },
+      });
+      expect(
+        await screen.findByRole("heading", { name: "First note" }),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getAllByRole("button", { name: "Pin" })[0]);
+      await waitFor(() =>
+        expect(apiClient.put).toHaveBeenCalledWith("/notes/1", {
+          is_pinned: true,
+        }),
+      );
+      fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]);
+      await waitFor(() =>
+        expect(apiClient.put).toHaveBeenCalledWith("/notes/1", {
+          is_archived: true,
+        }),
+      );
+      fireEvent.change(screen.getByPlaceholderText("Search title or content"), {
+        target: { value: "" },
+      });
+      expect(
+        await screen.findByRole("heading", { name: "Second note" }),
+      ).toBeInTheDocument();
+      const secondNoteCard = screen
+        .getByRole("heading", { name: "Second note" })
+        .closest(".paper-card");
+      fireEvent.click(
+        within(secondNoteCard).getByRole("button", { name: "Delete" }),
+      );
+      await waitFor(() =>
+        expect(apiClient.delete).toHaveBeenCalledWith("/notes/2"),
+      );
     });
-    expect(
-      await screen.findByRole("heading", { name: "First note" }),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "Pin" })[0]);
-    await waitFor(() =>
-      expect(apiClient.put).toHaveBeenCalledWith("/notes/1", {
-        is_pinned: true,
-      }),
-    );
-    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]);
-    await waitFor(() =>
-      expect(apiClient.put).toHaveBeenCalledWith("/notes/1", {
-        is_archived: true,
-      }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    await waitFor(() =>
-      expect(apiClient.delete).toHaveBeenCalledWith("/notes/2"),
-    );
   });
 
   it("shows an API error", async () => {
-    apiClient.get.mockRejectedValue(new Error("network"));
-    renderWithRouter(<DashboardPage />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Could not load notes",
-    );
+    await runWorkflow("Dashboard load-error workflow", async () => {
+      apiClient.get.mockRejectedValue(new Error("network"));
+      renderWithRouter(<DashboardPage />);
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Could not load notes",
+      );
+    });
   });
 });
 
@@ -241,82 +273,90 @@ describe("NoteEditorPage", () => {
   });
 
   it("creates a note with metadata", async () => {
-    apiClient.post.mockResolvedValue({});
-    renderWithRouter(<NoteEditorPage />, ["/notes/new"]);
-    fireEvent.change(screen.getByPlaceholderText("Untitled"), {
-      target: { value: "My note" },
+    await runWorkflow("Note-creation workflow", async () => {
+      apiClient.post.mockResolvedValue({});
+      renderWithRouter(<NoteEditorPage />, ["/notes/new"]);
+      fireEvent.change(screen.getByPlaceholderText("Untitled"), {
+        target: { value: "My note" },
+      });
+      fireEvent.change(screen.getByLabelText("Tags"), {
+        target: { value: "work, ideas" },
+      });
+      fireEvent.change(screen.getByLabelText("Category"), {
+        target: { value: "Work" },
+      });
+      fireEvent.click(screen.getByLabelText("Pin note"));
+      fireEvent.submit(
+        screen.getByRole("button", { name: "Save note" }).closest("form"),
+      );
+      await waitFor(() =>
+        expect(apiClient.post).toHaveBeenCalledWith(
+          "/notes",
+          expect.objectContaining({
+            title: "My note",
+            tags: ["work", "ideas"],
+            is_pinned: true,
+          }),
+        ),
+      );
+      expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
     });
-    fireEvent.change(screen.getByLabelText("Tags"), {
-      target: { value: "work, ideas" },
-    });
-    fireEvent.change(screen.getByLabelText("Category"), {
-      target: { value: "Work" },
-    });
-    fireEvent.click(screen.getByLabelText("Pin note"));
-    fireEvent.submit(
-      screen.getByRole("button", { name: "Save note" }).closest("form"),
-    );
-    await waitFor(() =>
-      expect(apiClient.post).toHaveBeenCalledWith(
-        "/notes",
-        expect.objectContaining({
-          title: "My note",
-          tags: ["work", "ideas"],
-          is_pinned: true,
-        }),
-      ),
-    );
-    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard");
   });
 
   it("loads, updates, and deletes an existing note", async () => {
-    const note = {
-      id: 3,
-      title: "Loaded",
-      content: { type: "doc", content: [] },
-      tags: ["one"],
-      category: "Work",
-      is_pinned: false,
-      is_archived: true,
-    };
-    apiClient.get.mockResolvedValue({ data: { data: { note } } });
-    apiClient.put.mockResolvedValue({});
-    apiClient.delete.mockResolvedValue({});
-    window.confirm.mockReturnValue(true);
-    renderWithRouter(<NoteEditorPage />, ["/notes/3"]);
-    expect(await screen.findByDisplayValue("Loaded")).toBeInTheDocument();
-    expect(mockEditor.commands.setContent).toHaveBeenCalledWith(note.content);
-    fireEvent.change(screen.getByDisplayValue("Loaded"), {
-      target: { value: "Updated" },
+    await runWorkflow("Note-update workflow", async () => {
+      const note = {
+        id: 3,
+        title: "Loaded",
+        content: { type: "doc", content: [] },
+        tags: ["one"],
+        category: "Work",
+        is_pinned: false,
+        is_archived: true,
+      };
+      apiClient.get.mockResolvedValue({ data: { data: { note } } });
+      apiClient.put.mockResolvedValue({});
+      apiClient.delete.mockResolvedValue({});
+      window.confirm.mockReturnValue(true);
+      renderWithRouter(<NoteEditorPage />, ["/notes/3"]);
+      expect(await screen.findByDisplayValue("Loaded")).toBeInTheDocument();
+      expect(mockEditor.commands.setContent).toHaveBeenCalledWith(note.content);
+      fireEvent.change(screen.getByDisplayValue("Loaded"), {
+        target: { value: "Updated" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Save note" }));
+      await waitFor(() =>
+        expect(apiClient.put).toHaveBeenCalledWith(
+          "/notes/3",
+          expect.objectContaining({ title: "Updated" }),
+        ),
+      );
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
-    await waitFor(() =>
-      expect(apiClient.put).toHaveBeenCalledWith(
-        "/notes/3",
-        expect.objectContaining({ title: "Updated" }),
-      ),
-    );
   });
 
   it("deletes an existing note after confirmation", async () => {
-    apiClient.get.mockResolvedValue({
-      data: { data: { note: { id: 3, title: "Delete me", content: {} } } },
+    await runWorkflow("Note-deletion workflow", async () => {
+      apiClient.get.mockResolvedValue({
+        data: { data: { note: { id: 3, title: "Delete me", content: {} } } },
+      });
+      apiClient.delete.mockResolvedValue({});
+      window.confirm.mockReturnValue(true);
+      renderWithRouter(<NoteEditorPage />, ["/notes/3"]);
+      await screen.findByDisplayValue("Delete me");
+      fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
+      await waitFor(() =>
+        expect(apiClient.delete).toHaveBeenCalledWith("/notes/3"),
+      );
     });
-    apiClient.delete.mockResolvedValue({});
-    window.confirm.mockReturnValue(true);
-    renderWithRouter(<NoteEditorPage />, ["/notes/3"]);
-    await screen.findByDisplayValue("Delete me");
-    fireEvent.click(screen.getByRole("button", { name: "Delete note" }));
-    await waitFor(() =>
-      expect(apiClient.delete).toHaveBeenCalledWith("/notes/3"),
-    );
   });
 
   it("shows a load error", async () => {
-    apiClient.get.mockRejectedValueOnce(new Error("missing"));
-    renderWithRouter(<NoteEditorPage />, ["/notes/4"]);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Note not found",
-    );
+    await runWorkflow("Note load-error workflow", async () => {
+      apiClient.get.mockRejectedValueOnce(new Error("missing"));
+      renderWithRouter(<NoteEditorPage />, ["/notes/4"]);
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Note not found",
+      );
+    });
   });
 });
