@@ -1,4 +1,4 @@
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_REGEX = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,63}$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 function validateSignup({ name, email, password } = {}) {

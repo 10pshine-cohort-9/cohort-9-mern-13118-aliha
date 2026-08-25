@@ -11,6 +11,7 @@ const routes = require("./routes");
 
 const app = express();
 
+app.disable("x-powered-by");
 app.use(requestId);
 
 app.use(

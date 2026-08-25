@@ -1,4 +1,10 @@
-import { createContext, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import PropTypes from "prop-types";
 import apiClient from "../services/apiClient";
 
@@ -16,7 +22,7 @@ export function AuthProvider({ children }) {
     }
   });
 
-  async function login(email, password) {
+  const login = useCallback(async (email, password) => {
     try {
       const res = await apiClient.post("/auth/login", { email, password });
       const { user: loggedInUser } = res.data.data;
@@ -31,9 +37,9 @@ export function AuthProvider({ children }) {
       setUser(null);
       throw error;
     }
-  }
+  }, []);
 
-  async function signup(name, email, password) {
+  const signup = useCallback(async (name, email, password) => {
     try {
       const res = await apiClient.post("/auth/signup", {
         name,
@@ -52,9 +58,9 @@ export function AuthProvider({ children }) {
       setUser(null);
       throw error;
     }
-  }
+  }, []);
 
-  async function logout() {
+  const logout = useCallback(async () => {
     try {
       await apiClient.post("/auth/logout");
     } catch (error) {
@@ -65,9 +71,12 @@ export function AuthProvider({ children }) {
       localStorage.removeItem("user");
       setUser(null);
     }
-  }
+  }, []);
 
-  const value = { user, login, signup, logout };
+  const value = useMemo(
+    () => ({ user, login, signup, logout }),
+    [user, login, signup, logout],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

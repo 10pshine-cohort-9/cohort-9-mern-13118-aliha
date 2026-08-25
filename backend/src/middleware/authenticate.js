@@ -31,7 +31,7 @@ module.exports = function authenticate(req, res, next) {
   const hasAuthHeader = Boolean(tokenFromHeader);
   if (!hasAuthHeader && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
     const csrfToken = req.headers["x-csrf-token"];
-    if (!csrfToken || csrfToken !== cookies.csrfToken) {
+    if (!csrfToken || csrfToken !== cookies?.csrfToken) {
       return next(new AppError("Missing or invalid CSRF token", 403));
     }
   }
